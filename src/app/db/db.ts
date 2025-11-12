@@ -12,9 +12,9 @@ export const initiateSuperAdmin = async () => {
     );
  
     const payload: Prisma.UserCreateInput = {
-      email: "superadmin@gmail.com",
+      email: "admin@gmail.com",
       password: hashedPassword,
-      role: UserRole.SUPER_ADMIN,
+      role: UserRole.ADMIN,
     };
  
     const isExistUser = await prisma.user.findFirst({
@@ -22,15 +22,15 @@ export const initiateSuperAdmin = async () => {
     });
  
     if (isExistUser) {
-      console.log("Super admin already exist!");
+      console.log("Admin already exist!");
       return;
     };
  
     await prisma.user.create({
       data: payload,
     });
-    console.log("Super admin created successfully!");
+    console.log("Admin created successfully!");
   } catch (error) {
-    console.error(" Super admin init failed:", error);
+    console.error(" Admin init failed:", error);
   }
 };

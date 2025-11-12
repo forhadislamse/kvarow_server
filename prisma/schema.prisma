@@ -12,7 +12,6 @@ model User {
   email         String     @unique
   password      String
   firstName     String?    @default("")
-  lastName      String?    @default("")
   profileImage  String?    @default("")
   phone         String?    @default("")
   about         String?    @default("")
@@ -38,9 +37,72 @@ model User {
   Notification Notification[]
   payments     Payment[]      @relation("UserPayments")
 
+  // ✨ Multi-step interest relation
+  interests UserCategoryInterest[]
 
   @@map("users")
 }
+
+model Category {
+  id               String                 @id @default(auto()) @map("_id") @db.ObjectId
+  name             String                 @unique
+  subCategories    SubCategory[]          
+  usersInterested  UserCategoryInterest[] 
+
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+}
+
+model SubCategory {
+  id          String      @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  categoryId  String      @db.ObjectId
+  category    Category    @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  skills      Skill[]     
+
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@unique([name, categoryId])
+}
+
+model Skill {
+  id            String      @id @default(auto()) @map("_id") @db.ObjectId
+  name          String
+  subCategoryId String      @db.ObjectId
+  subCategory   SubCategory @relation( fields: [subCategoryId], references: [id], onDelete: Cascade)
+
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@unique([name, subCategoryId])
+}
+
+model UserCategoryInterest {
+  id                    String    @id @default(auto()) @map("_id") @db.ObjectId
+
+  userId                String    @db.ObjectId
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  categoryId            String    @db.ObjectId
+  category              Category  @relation( fields: [categoryId], references: [id], onDelete: Cascade)
+
+  selectedSubCategoryId String?   @db.ObjectId
+  selectedSkillId       String?   @db.ObjectId
+  skillLevel            SkillLevel @default(Beginner)   // e.g. Beginner, Intermediate, Advanced
+
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@unique([userId, categoryId])
+}
+
+enum SkillLevel {
+  Beginner
+  Intermediate
+  Advanced
+}
+
 
 
 
@@ -118,8 +180,8 @@ enum NotificationType {
 
 enum UserRole {
   USER
+  TEACHER
   ADMIN
-  SUPER_ADMIN
 }
 
 enum ReqStatus {
@@ -159,7 +221,7 @@ model Chat {
   id         String   @id @default(auto()) @map("_id") @db.ObjectId
   senderId   String
   receiverId String
-  roomId     String
+  roomId     String   @db.ObjectId
   message    String
   images     String[] @default([])
   isRead     Boolean  @default(false)

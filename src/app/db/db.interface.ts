@@ -10,6 +10,5 @@ export interface IAdmin {
 export enum Role {
   ADMIN,
   USER,
-  SUPER_ADMIN,
   TEACHER,
 }

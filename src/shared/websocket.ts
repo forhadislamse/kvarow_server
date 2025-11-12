@@ -105,7 +105,7 @@ export function setupWebSocket(server: Server) {
             const userIds = rooms.map(r => (r.senderId === ws.userId ? r.receiverId : r.senderId));
             const userInfos = await prisma.user.findMany({
               where: { id: { in: userIds } },
-              select: { id: true, firstName: true, lastName: true, email: true, profileImage: true }
+              select: { id: true, firstName: true, email: true, profileImage: true }
             });
 
             const userWithLastMessages = rooms.map(r => {
@@ -118,7 +118,7 @@ export function setupWebSocket(server: Server) {
             break;
           }
 
-          case "groupMessage": {
+        /*   case "groupMessage": {
             const { groupId, message, images } = parsedData;
             if (!ws.userId || !groupId || !message) return;
 
@@ -153,7 +153,7 @@ export function setupWebSocket(server: Server) {
 
             ws.send(JSON.stringify({ event: "fetchGroupMessages", data: messages }));
             break;
-          }
+          } */
 
           default:
             console.log("Unknown event:", parsedData.event);

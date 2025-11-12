@@ -16,6 +16,22 @@ const moduleRoutes = [
     route: userRoutes,
   },
   {
+    path: "/admin/categories",
+    route: userRoutes,
+  },
+  {
+    path: "/admin/sub-categories",
+    route: userRoutes,
+  },
+  {
+    path: "/admin/skills",
+    route: userRoutes,
+  },
+  {
+    path: "/admin/skill-levels",
+    route: userRoutes,
+  },
+  {
     path: "/file-uploads",
     route: fileUploadRoutes,
   },

@@ -10,8 +10,6 @@ import emailSender from "../../../shared/brevoMailSender";
 import prisma from "../../../shared/prisma";
 import { registrationOtpTemplate } from "../../../helpars/template/registrationOtpTemplate";
 import { forgotPasswordTemplate } from "../../../helpars/template/forgotPasswordTemplate";
-import { notificationService } from "../Notification/Notification.service";
-import { NotificationType } from "@prisma/client";
 
 const createUserIntoDb = async (payload: any & { referredId?: string }) => {
   const { email, password, fcmToken } = payload;
@@ -56,30 +54,6 @@ const createUserIntoDb = async (payload: any & { referredId?: string }) => {
     registrationOtpTemplate(otp),
     "User Email Verification OTP"
   );
-
-const notificationPayload = {
-  title: "Welcome to Our Platform!",
-  body: "Your account has been created successfully. Please verify your email.",
-  type: NotificationType.REGISTRATION,
-  data: JSON.stringify({ userId: newUser.id }),
-  targetId: newUser.id,
-  slug: "user-registration",
-  fcmToken: fcmToken || "",
-};
-
-try {
-  if (newUser.fcmToken) {
-    await notificationService.sendNotification(
-      newUser.fcmToken,
-      notificationPayload,
-      newUser.id
-    );
-  }
-
-  await notificationService.saveNotification(notificationPayload, newUser.id);
-} catch (error) {
-  console.error("Failed to send or save registration notification:", error);
-}
 
   // Generate JWT token
   const token = jwtHelpers.generateToken(
@@ -155,7 +129,7 @@ const loginUser = async (payload: {
   }
 
   // Notification payload
-  const notificationPayload = {
+ /*  const notificationPayload = {
     title: "Login Successful",
     body: `Welcome back, ${userData.firstName || ""}!`,
     type: NotificationType.LOGIN_SUCCESS, 
@@ -178,7 +152,7 @@ const loginUser = async (payload: {
     await notificationService.saveNotification(notificationPayload, userData.id);
   } catch (error) {
     console.error("Failed to send or save login notification:", error);
-  }
+  } */
 
   return { token: accessToken, refreshToken: refreshToken, role: role };
 };
@@ -354,7 +328,7 @@ const verifyEmailOtp = async (payload: {
     select: {
       id: true,
       firstName: true,
-      lastName: true,
+  
       email: true,
       isVerifyEmail: true,
       updatedAt: true,
@@ -389,7 +363,7 @@ const resetPassword = async (payload: { password: string; email: string }) => {
   });
 
    // Notification payload
-  const notificationPayload = {
+  /* const notificationPayload = {
     title: "Password Reset Successful",
     body: "Your password has been reset successfully. You can now login with your new password.",
     type: NotificationType.PASSWORD_RESET,
@@ -408,7 +382,7 @@ const resetPassword = async (payload: { password: string; email: string }) => {
     await notificationService.saveNotification(notificationPayload, user.id);
   } catch (error) {
     console.error("Failed to send or save password reset notification:", error);
-  }
+  } */
 
   return { message: "Password reset successfully" };
 };
@@ -441,7 +415,6 @@ const deleteUser = async (userToken: string) => {
       id: true,
       email: true,
       firstName: true,
-      lastName: true,
       role: true,
     },
   });
