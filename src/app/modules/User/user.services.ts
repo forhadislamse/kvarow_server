@@ -149,8 +149,7 @@ const toggleUserOnlineStatus = async (
     },
     select: {
        id: true,
-      firstName: true,
-      lastName: true,
+      fullName: true,
       email: true,
       profileImage: true,
       phone: true,
@@ -193,8 +192,7 @@ const toggleNotificationOnOff = async (
     },
     select: {
      id: true,
-      firstName: true,
-      lastName: true,
+      fullName: true,
       email: true,
       profileImage: true,
       phone: true,

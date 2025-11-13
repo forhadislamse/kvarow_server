@@ -327,7 +327,7 @@ const verifyEmailOtp = async (payload: {
     },
     select: {
       id: true,
-      firstName: true,
+      fullName: true,
   
       email: true,
       isVerifyEmail: true,
@@ -414,7 +414,7 @@ const deleteUser = async (userToken: string) => {
     select: {
       id: true,
       email: true,
-      firstName: true,
+      fullName: true,
       role: true,
     },
   });

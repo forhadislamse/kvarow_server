@@ -105,7 +105,7 @@ export function setupWebSocket(server: Server) {
             const userIds = rooms.map(r => (r.senderId === ws.userId ? r.receiverId : r.senderId));
             const userInfos = await prisma.user.findMany({
               where: { id: { in: userIds } },
-              select: { id: true, firstName: true, email: true, profileImage: true }
+              select: { id: true, fullName: true, email: true, profileImage: true }
             });
 
             const userWithLastMessages = rooms.map(r => {
