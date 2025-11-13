@@ -14,7 +14,7 @@ router.get("/", auth(), categoryController.getAllCategories);
 router.get("/:id",  auth(), categoryController.getCategoryById);
 
 // 🔹 Update category (auth required)
-router.put("/:id", auth(), categoryController.updateCategory);
+router.patch("/:id", auth(), categoryController.updateCategory);
 
 // 🔹 Delete category (auth required)
 router.delete("/:id", auth(), categoryController.deleteCategory);
