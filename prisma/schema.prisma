@@ -89,7 +89,7 @@ model UserCategoryInterest {
 
   selectedSubCategoryId String?   @db.ObjectId
   selectedSkillId       String?   @db.ObjectId
-  skillLevel            SkillLevel @default(Beginner)   // e.g. Beginner, Intermediate, Advanced
+  skillLevel            SkillLevel @default(BEGINNER)   // e.g. Beginner, Intermediate, Advanced
 
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
@@ -98,10 +98,11 @@ model UserCategoryInterest {
 }
 
 enum SkillLevel {
-  Beginner
-  Intermediate
-  Advanced
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
 }
+
 
 
 
