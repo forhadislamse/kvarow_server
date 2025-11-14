@@ -38,7 +38,7 @@ model User {
   payments     Payment[]      @relation("UserPayments")
 
   // ✨ Multi-step interest relation
-  interests UserCategoryInterest[]
+  // interests UserCategoryInterest[]
 
   @@map("users")
 }
@@ -47,7 +47,7 @@ model Category {
   id               String                 @id @default(auto()) @map("_id") @db.ObjectId
   name             String                 @unique
   subCategories    SubCategory[]          
-  usersInterested  UserCategoryInterest[] 
+  // usersInterested  UserCategoryInterest[] 
 
   createdAt        DateTime               @default(now())
   updatedAt        DateTime               @updatedAt
@@ -71,6 +71,7 @@ model Skill {
   name          String
   subCategoryId String      @db.ObjectId
   subCategory   SubCategory @relation( fields: [subCategoryId], references: [id], onDelete: Cascade)
+  levels   SkillLevel[]
 
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
@@ -78,30 +79,40 @@ model Skill {
   @@unique([name, subCategoryId])
 }
 
-model UserCategoryInterest {
-  id                    String    @id @default(auto()) @map("_id") @db.ObjectId
+// model UserCategoryInterest {
+//   id                    String    @id @default(auto()) @map("_id") @db.ObjectId
 
-  userId                String    @db.ObjectId
-  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+//   userId                String    @db.ObjectId
+//   user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  categoryId            String    @db.ObjectId
-  category              Category  @relation( fields: [categoryId], references: [id], onDelete: Cascade)
+//   categoryId            String    @db.ObjectId
+//   category              Category  @relation( fields: [categoryId], references: [id], onDelete: Cascade)
 
-  selectedSubCategoryId String?   @db.ObjectId
-  selectedSkillId       String?   @db.ObjectId
-  skillLevel            SkillLevel @default(BEGINNER)   // e.g. Beginner, Intermediate, Advanced
+//   selectedSubCategoryId String?   @db.ObjectId
+//   selectedSkillId       String?   @db.ObjectId
+//   skillLevel            SkillLevel @default(BEGINNER)   // e.g. Beginner, Intermediate, Advanced
 
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
+//   createdAt             DateTime  @default(now())
+//   updatedAt             DateTime  @updatedAt
 
-  @@unique([userId, categoryId])
-}
+//   @@unique([userId, categoryId])
+// }
 
 enum SkillLevel {
   BEGINNER
   INTERMEDIATE
-  ADVANCED
+  EXPERT
 }
+
+// model SkillLevel {
+//   id      String         @id @default(auto()) @map("_id") @db.ObjectId
+//   name    SkillLevelEnum
+//   skillId String         @db.ObjectId
+//   skill   Skill          @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+//   createdAt DateTime @default(now())
+//   updatedAt DateTime @updatedAt
+// }
 
 
 

@@ -3,7 +3,7 @@ import ApiError from "../../../../errors/ApiError";
 import prisma from "../../../../shared/prisma";
 
 // Simple validation function
-const validateCategoryName = (name: string) => {
+/* const validateCategoryName = (name: string) => {
   if (!name || name.trim() === "") {
     throw new ApiError(httpStatus.BAD_REQUEST, "Category name is required");
   }
@@ -17,12 +17,57 @@ const createCategory = async (payload: { name: string }) => {
   if (exist) throw new ApiError(httpStatus.CONFLICT, "Category already exists");
 
   return await prisma.category.create({ data: { name: payload.name } });
+}; */
+
+
+const validateCategoryName = (name: string) => {
+  if (!name || name.trim() === "") {
+    throw new ApiError(httpStatus.BAD_REQUEST, "Category name is required");
+  }
 };
 
-const getAllCategories = async () => {
+const createCategory = async (role: string, payload: { name: string }) => {
+  // Only ADMIN
+  if (role !== "ADMIN") {
+    throw new ApiError(httpStatus.FORBIDDEN, "Only admin can create category");
+  }
+
+  validateCategoryName(payload.name);
+
+  const exist = await prisma.category.findUnique({ where: { name: payload.name } });
+  if (exist) {
+    throw new ApiError(httpStatus.CONFLICT, "Category already exists");
+  }
+
+  return prisma.category.create({ data: { name: payload.name } });
+};
+
+// const getAllCategories = async () => {
+//   return await prisma.category.findMany({
+//     include: { subCategories: true },
+//     orderBy: { createdAt: "desc" },
+//   });
+// };
+
+const getAllCategories = async (search?: string) => {
   return await prisma.category.findMany({
-    include: { subCategories: true },
-    orderBy: { createdAt: "desc" },
+    where: search
+      ? {
+          name: {
+            contains: search,
+            mode: "insensitive", // case-insensitive search
+          },
+        }
+      : {}, // search না থাকলে সব category fetch হবে
+
+    select: {
+      name: true, // শুধু category name
+      subCategories: {
+        select: { name: true }, // শুধু subcategory name
+      },
+    },
+
+    orderBy: { name: "asc" }, // alphabetical order
   });
 };
 
@@ -38,12 +83,14 @@ const getCategoryById = async (id: string) => {
 const updateCategory = async (
   id: string,
   payload: { name?: string },
-  userId: string,
-  userRole: string
+  user: { id: string; role: string }
 ) => {
+  if (user.role !== "ADMIN") {
+    throw new ApiError(httpStatus.FORBIDDEN, "Only admin can update category");
+  }
+
   const category = await prisma.category.findUnique({ where: { id } });
   if (!category) throw new ApiError(httpStatus.NOT_FOUND, "Category not found");
-
 
   if (payload.name && payload.name !== category.name) {
     validateCategoryName(payload.name);
@@ -55,13 +102,16 @@ const updateCategory = async (
   return await prisma.category.update({ where: { id }, data: payload });
 };
 
-const deleteCategory = async (id: string, userId: string, userRole: string) => {
+const deleteCategory = async (id: string, user: { id: string; role: string }) => {
+  if (user.role !== "ADMIN") {
+    throw new ApiError(httpStatus.FORBIDDEN, "Only admin can delete category");
+  }
+
   const category = await prisma.category.findUnique({ where: { id } });
   if (!category) throw new ApiError(httpStatus.NOT_FOUND, "Category not found");
 
   return await prisma.category.delete({ where: { id } });
 };
-
 // Export all together
 export const categoryServices = {
   createCategory,

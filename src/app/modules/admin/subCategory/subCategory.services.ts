@@ -24,8 +24,15 @@ const validateSubCategory = async (name: string, categoryId: string) => {
   }
 };
 
-// ✅ Create
-const createSubCategory = async (payload: { name: string; categoryId: string }) => {
+const createSubCategory = async (
+  userRole: string,
+  payload: { name: string; categoryId: string }
+) => {
+  // Only ADMIN can create
+  if (userRole !== "ADMIN") {
+    throw new ApiError(httpStatus.FORBIDDEN, "Only admin can create subcategory");
+  }
+
   await validateSubCategory(payload.name, payload.categoryId);
 
   const categoryExist = await prisma.category.findUnique({
@@ -38,10 +45,47 @@ const createSubCategory = async (payload: { name: string; categoryId: string }) 
 };
 
 // ✅ Get All
-const getAllSubCategories = async () => {
+// const getAllSubCategories = async () => {
+//   return await prisma.subCategory.findMany({
+//     include: { category: true, skills: true },
+//     orderBy: { createdAt: "desc" },
+//   });
+// };
+
+const getAllSubCategories = async (search?: string) => {
   return await prisma.subCategory.findMany({
-    include: { category: true, skills: true },
-    orderBy: { createdAt: "desc" },
+    where: search
+      ? {
+          OR: [
+            {
+              name: {
+                contains: search,
+                mode: "insensitive", // subcategory name search
+              },
+            },
+            {
+              category: {
+                name: {
+                  contains: search,
+                  mode: "insensitive", // category name search
+                },
+              },
+            },
+          ],
+        }
+      : {},
+
+    select: {
+      name: true, // subcategory name
+      category: {
+        select: { name: true }, // category name
+      },
+      skills: {
+        select: { name: true }, // subcategory related skills name
+      },
+    },
+
+    orderBy: { name: "asc" }, // alphabetical order
   });
 };
 
@@ -59,16 +103,19 @@ const getSubCategoryById = async (id: string) => {
 const updateSubCategory = async (
   id: string,
   payload: { name?: string; categoryId?: string },
-  userId: string,
   userRole: string
 ) => {
-  const subCategory = await prisma.subCategory.findUnique({ where: { id } });
-  if (!subCategory) throw new ApiError(httpStatus.NOT_FOUND, "SubCategory not found");
+  // Only ADMIN can update
+  if (userRole !== "ADMIN") {
+    throw new ApiError(
+      httpStatus.FORBIDDEN,
+      "Only admin can update subcategory"
+    );
+  }
 
-//   // Ownership / Admin Check
-//   if (subCategory.createdBy && subCategory.createdBy !== userId && userRole !== "ADMIN") {
-//     throw new ApiError(httpStatus.FORBIDDEN, "You cannot update this SubCategory");
-//   }
+  const subCategory = await prisma.subCategory.findUnique({ where: { id } });
+  if (!subCategory)
+    throw new ApiError(httpStatus.NOT_FOUND, "SubCategory not found");
 
   // Validate new name (if changed)
   if (payload.name && payload.name !== subCategory.name) {
@@ -82,16 +129,21 @@ const updateSubCategory = async (
 };
 
 // ✅ Delete
-const deleteSubCategory = async (id: string, userId: string, userRole: string) => {
+const deleteSubCategory = async (id: string, userRole: string) => {
+  // Only ADMIN can delete
+  if (userRole !== "ADMIN") {
+    throw new ApiError(
+      httpStatus.FORBIDDEN,
+      "Only admin can delete subcategory"
+    );
+  }
+
   const subCategory = await prisma.subCategory.findUnique({
     where: { id },
     include: { skills: true },
   });
-  if (!subCategory) throw new ApiError(httpStatus.NOT_FOUND, "SubCategory not found");
-
-//   if (subCategory.createdBy && subCategory.createdBy !== userId && userRole !== "ADMIN") {
-//     throw new ApiError(httpStatus.FORBIDDEN, "You cannot delete this SubCategory");
-//   }
+  if (!subCategory)
+    throw new ApiError(httpStatus.NOT_FOUND, "SubCategory not found");
 
   // Cascade delete skills under it
   await prisma.skill.deleteMany({ where: { subCategoryId: id } });

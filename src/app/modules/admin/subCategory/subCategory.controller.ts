@@ -6,7 +6,8 @@ import sendResponse from "../../../../shared/sendResponse";
 
 
 const createSubCategory = catchAsync(async (req: Request, res: Response) => {
-  const result = await subCategoryService.createSubCategory(req.body);
+  const result = await subCategoryService.createSubCategory(req.user.role, req.body);
+
   sendResponse(res, {
     statusCode: httpStatus.CREATED,
     success: true,
@@ -15,8 +16,19 @@ const createSubCategory = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+// const getAllSubCategories = catchAsync(async (req: Request, res: Response) => {
+//   const result = await subCategoryService.getAllSubCategories();
+//   sendResponse(res, {
+//     statusCode: httpStatus.OK,
+//     success: true,
+//     message: "SubCategories fetched successfully",
+//     data: result,
+//   });
+// });
 const getAllSubCategories = catchAsync(async (req: Request, res: Response) => {
-  const result = await subCategoryService.getAllSubCategories();
+  const search = req.query.search as string | undefined; // optional search query
+  const result = await subCategoryService.getAllSubCategories(search);
+
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
@@ -36,9 +48,14 @@ const getSubCategoryById = catchAsync(async (req: Request, res: Response) => {
 });
 
 const updateSubCategory = catchAsync(async (req: Request, res: Response) => {
-  const userId = req.user.id;
   const userRole = req.user.role;
-  const result = await subCategoryService.updateSubCategory(req.params.id, req.body, userId, userRole);
+
+  const result = await subCategoryService.updateSubCategory(
+    req.params.id,
+    req.body,
+    userRole
+  );
+
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
@@ -48,9 +65,13 @@ const updateSubCategory = catchAsync(async (req: Request, res: Response) => {
 });
 
 const deleteSubCategory = catchAsync(async (req: Request, res: Response) => {
-  const userId = req.user.id;
   const userRole = req.user.role;
-  const result = await subCategoryService.deleteSubCategory(req.params.id, userId, userRole);
+
+  const result = await subCategoryService.deleteSubCategory(
+    req.params.id,
+    userRole
+  );
+
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,

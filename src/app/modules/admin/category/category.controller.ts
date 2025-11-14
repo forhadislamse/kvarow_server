@@ -3,9 +3,20 @@ import sendResponse from "../../../../shared/sendResponse";
 import catchAsync from "../../../../shared/catchAsync";
 import { categoryServices } from "./category.services";
 
-// Create Category (anyone can create: admin or user)
+// // Create Category (anyone can create: admin or user)
+// const createCategory = catchAsync(async (req, res) => {
+//   const result = await categoryServices.createCategory(req.body);
+//   sendResponse(res, {
+//     statusCode: httpStatus.CREATED,
+//     success: true,
+//     message: "Category created successfully",
+//     data: result,
+//   });
+// });
+
 const createCategory = catchAsync(async (req, res) => {
-  const result = await categoryServices.createCategory(req.body);
+  const result = await categoryServices.createCategory(req.user.role, req.body);
+
   sendResponse(res, {
     statusCode: httpStatus.CREATED,
     success: true,
@@ -15,8 +26,21 @@ const createCategory = catchAsync(async (req, res) => {
 });
 
 // Get all categories
+// const getAllCategories = catchAsync(async (req, res) => {
+//   const result = await categoryServices.getAllCategories();
+//   sendResponse(res, {
+//     statusCode: httpStatus.OK,
+//     success: true,
+//     message: "Categories fetched successfully",
+//     data: result,
+//   });
+// });
+
 const getAllCategories = catchAsync(async (req, res) => {
-  const result = await categoryServices.getAllCategories();
+  const search = req.query.search as string | undefined; // optional search query
+
+  const result = await categoryServices.getAllCategories(search);
+
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
@@ -37,11 +61,17 @@ const getCategoryById = catchAsync(async (req, res) => {
   });
 });
 
-// Update category (only creator or admin)
 const updateCategory = catchAsync(async (req, res) => {
   const { id } = req.params;
-  const userId = req.user.id; // logged-in user
-  const result = await categoryServices.updateCategory(id, req.body, userId, req.user.role);
+
+  // user info
+  const user = {
+    id: req.user.id,
+    role: req.user.role,
+  };
+
+  const result = await categoryServices.updateCategory(id, req.body, user);
+
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
@@ -50,11 +80,16 @@ const updateCategory = catchAsync(async (req, res) => {
   });
 });
 
-// Delete category (only creator or admin)
 const deleteCategory = catchAsync(async (req, res) => {
   const { id } = req.params;
-  const userId = req.user.id; // logged-in user
-  const result = await categoryServices.deleteCategory(id, userId, req.user.role);
+
+  const user = {
+    id: req.user.id,
+    role: req.user.role,
+  };
+
+  const result = await categoryServices.deleteCategory(id, user);
+
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,

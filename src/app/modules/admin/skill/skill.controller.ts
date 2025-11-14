@@ -5,8 +5,11 @@ import catchAsync from "../../../../shared/catchAsync";
 import sendResponse from "../../../../shared/sendResponse";
 
 
-export const createSkill = catchAsync(async (req: Request, res: Response) => {
-  const result = await skillService.createSkill(req.body);
+const createSkill = catchAsync(async (req: Request, res: Response) => {
+  const userRole = req.user.role; // Admin-only check
+
+  const result = await skillService.createSkill(userRole, req.body);
+
   sendResponse(res, {
     statusCode: httpStatus.CREATED,
     success: true,
@@ -15,8 +18,20 @@ export const createSkill = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-export const getAllSkills = catchAsync(async (req: Request, res: Response) => {
-  const result = await skillService.getAllSkills();
+// const getAllSkills = catchAsync(async (req: Request, res: Response) => {
+//   const result = await skillService.getAllSkills();
+//   sendResponse(res, {
+//     statusCode: httpStatus.OK,
+//     success: true,
+//     message: "Skills fetched successfully",
+//     data: result,
+//   });
+// });
+
+const getAllSkills = catchAsync(async (req: Request, res: Response) => {
+  const search = req.query.search as string | undefined; // optional search query
+  const result = await skillService.getAllSkills(search);
+
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
@@ -25,7 +40,7 @@ export const getAllSkills = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-export const getSkillById = catchAsync(async (req: Request, res: Response) => {
+const getSkillById = catchAsync(async (req: Request, res: Response) => {
   const result = await skillService.getSkillById(req.params.id);
   sendResponse(res, {
     statusCode: httpStatus.OK,
@@ -34,11 +49,11 @@ export const getSkillById = catchAsync(async (req: Request, res: Response) => {
     data: result,
   });
 });
-
-export const updateSkill = catchAsync(async (req: Request, res: Response) => {
-  const userId = req.user.id;
+const updateSkill = catchAsync(async (req: Request, res: Response) => {
   const userRole = req.user.role;
-  const result = await skillService.updateSkill(req.params.id, req.body, userId, userRole);
+
+  const result = await skillService.updateSkill(req.params.id, req.body, userRole);
+
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
@@ -47,10 +62,11 @@ export const updateSkill = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-export const deleteSkill = catchAsync(async (req: Request, res: Response) => {
-  const userId = req.user.id;
+const deleteSkill = catchAsync(async (req: Request, res: Response) => {
   const userRole = req.user.role;
-  const result = await skillService.deleteSkill(req.params.id, userId, userRole);
+
+  const result = await skillService.deleteSkill(req.params.id, userRole);
+
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,

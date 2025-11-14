@@ -8,7 +8,7 @@ const router = express.Router();
 router.post("/create",auth(), categoryController.createCategory);
 
 // 🔹 Get all categories
-router.get("/", auth(), categoryController.getAllCategories);
+router.get("/", categoryController.getAllCategories);
 
 // 🔹 Get single category by ID
 router.get("/:id",  auth(), categoryController.getCategoryById);

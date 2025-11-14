@@ -2,6 +2,7 @@
 import httpStatus from "http-status";
 import ApiError from "../../../../errors/ApiError";
 import prisma from "../../../../shared/prisma";
+import { SkillLevelEnum } from "@prisma/client";
 
 // ✅ Validation
 const validateSkill = async (name: string, subCategoryId: string) => {
@@ -24,8 +25,15 @@ const validateSkill = async (name: string, subCategoryId: string) => {
   }
 };
 
-// ✅ Create Skill
-const createSkill = async (payload: { name: string; subCategoryId: string }) => {
+const createSkill = async (
+  userRole: string,
+  payload: { name: string; subCategoryId: string }
+) => {
+  // Only ADMIN can create
+  if (userRole !== "ADMIN") {
+    throw new ApiError(httpStatus.FORBIDDEN, "Only admin can create skill");
+  }
+
   await validateSkill(payload.name, payload.subCategoryId);
 
   const subCategoryExist = await prisma.subCategory.findUnique({
@@ -37,11 +45,45 @@ const createSkill = async (payload: { name: string; subCategoryId: string }) => 
   return await prisma.skill.create({ data: payload });
 };
 
-// ✅ Get All Skills
-const getAllSkills = async () => {
+
+// const getAllSkills = async () => {
+//   return await prisma.skill.findMany({
+//     include: { subCategory: true },
+//     orderBy: { createdAt: "desc" },
+//   });
+// };
+
+const getAllSkills = async (search?: string) => {
   return await prisma.skill.findMany({
-    include: { subCategory: true },
-    orderBy: { createdAt: "desc" },
+    where: search
+      ? {
+          OR: [
+            {
+              name: {
+                contains: search,
+                mode: "insensitive", // skill name search
+              },
+            },
+            {
+              subCategory: {
+                name: {
+                  contains: search,
+                  mode: "insensitive", // subcategory name search
+                },
+              },
+            },
+          ],
+        }
+      : {},
+
+    select: {
+      name: true, // skill name
+      subCategory: {
+        select: { name: true }, // related subcategory name
+      },
+    },
+
+    orderBy: { name: "asc" }, // alphabetical order
   });
 };
 
@@ -59,16 +101,14 @@ const getSkillById = async (id: string) => {
 const updateSkill = async (
   id: string,
   payload: { name?: string; subCategoryId?: string },
-  userId: string,
   userRole: string
 ) => {
+  if (userRole !== "ADMIN") {
+    throw new ApiError(httpStatus.FORBIDDEN, "Only admin can update skill");
+  }
+
   const skill = await prisma.skill.findUnique({ where: { id } });
   if (!skill) throw new ApiError(httpStatus.NOT_FOUND, "Skill not found");
-
-//   // Ownership / Admin Check
-//   if (skill.createdBy && skill.createdBy !== userId && userRole !== "ADMIN") {
-//     throw new ApiError(httpStatus.FORBIDDEN, "You cannot update this Skill");
-//   }
 
   // Validate name uniqueness (if changed)
   if (payload.name && payload.name !== skill.name) {
@@ -81,19 +121,18 @@ const updateSkill = async (
   });
 };
 
-// ✅ Delete Skill
-const deleteSkill = async (id: string, userId: string, userRole: string) => {
+const deleteSkill = async (id: string, userRole: string) => {
+  if (userRole !== "ADMIN") {
+    throw new ApiError(httpStatus.FORBIDDEN, "Only admin can delete skill");
+  }
+
   const skill = await prisma.skill.findUnique({
     where: { id },
     include: { subCategory: true },
   });
   if (!skill) throw new ApiError(httpStatus.NOT_FOUND, "Skill not found");
 
-//   if (skill.createdBy && skill.createdBy !== userId && userRole !== "ADMIN") {
-//     throw new ApiError(httpStatus.FORBIDDEN, "You cannot delete this Skill");
-//   }
-
-  // Cascade delete SkillLevels (if model exists later)
+  // Cascade delete SkillLevels if needed
 
   return await prisma.skill.delete({ where: { id } });
 };

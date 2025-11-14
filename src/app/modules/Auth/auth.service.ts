@@ -12,7 +12,7 @@ import { registrationOtpTemplate } from "../../../helpars/template/registrationO
 import { forgotPasswordTemplate } from "../../../helpars/template/forgotPasswordTemplate";
 import { SkillLevel } from "@prisma/client";
 
-/* const createUserIntoDb = async (payload: any & { referredId?: string }) => {
+const createUserIntoDb = async (payload: any & { referredId?: string }) => {
   const { email, password, fcmToken } = payload;
 
   // Check if user already exists
@@ -68,14 +68,10 @@ import { SkillLevel } from "@prisma/client";
     user: { ...newUser, password: undefined },
     token,
   };
-}; */
+};
 
 
-/**
- * ✅ User Signup with Interest Auto-Create
- */
-
-const createUserIntoDb = async (payload: any) => {
+/* const createUserIntoDb = async (payload: any) => {
   const { email, password, fcmToken, interests } = payload;
 
   // 1️⃣ Check if user already exists
@@ -186,7 +182,7 @@ const createUserIntoDb = async (payload: any) => {
     user: { ...newUser, password: undefined },
     token,
   };
-};
+}; */
 
 
 
