@@ -6,6 +6,8 @@ import { fileUploadRoutes } from "../modules/fileUpload/fileUpload.routes";
 import { categoryRoutes } from "../modules/admin/category/category.routes";
 import { subCategoryRoutes } from "../modules/admin/subCategory/subCategory.routes";
 import { skillRoutes } from "../modules/admin/skill/skill.routes";
+import { goalRoutes } from "../modules/normalUser/goal/goal.routes";
+import { instructorSkillRoutes } from "../modules/normalUser/teach/teach.routes";
 // import { userCategoryInterestRoutes } from "../modules/admin/userCategoryInterest/userCategoryInterest.routes";
 
 const router = express.Router();
@@ -42,6 +44,14 @@ const moduleRoutes = [
   {
     path: "/uploads",
     route: fileUploadRoutes,
+  },
+  {
+    path: "/goals",
+    route: goalRoutes,
+  },
+  {
+    path: "/teaches",
+    route: instructorSkillRoutes,
   },
 
 ];

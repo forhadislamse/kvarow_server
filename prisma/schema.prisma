@@ -12,6 +12,7 @@ model User {
   email         String     @unique
   password      String
   fullName      String?    @default("")
+  professionalName String?    @default("")
   profileImage  String?    @default("")
   phone         String?    @default("")
   about         String?    @default("")
@@ -48,6 +49,9 @@ model User {
   payments     Payment[]      @relation("UserPayments")
   goals        Goal[]         @relation("UserGoal")
 
+  // Back-reference for InstructorSkill.user relation
+  instructorSkills InstructorSkill[]
+
   // ✨ Multi-step interest relation
   // interests UserCategoryInterest[]
 
@@ -83,6 +87,7 @@ model Skill {
   subCategoryId String       @db.ObjectId
   subCategory   SubCategory  @relation(fields: [subCategoryId], references: [id], onDelete: Cascade)
   levels        SkillLevel[]
+  instructorSkills  InstructorSkill[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -125,6 +130,35 @@ enum SkillLevel {
 //   updatedAt DateTime @updatedAt
 // }
 
+model InstructorSkill {
+  id                       String    @id @default(auto()) @map("_id") @db.ObjectId
+
+  // Link to User
+  userId                   String    @db.ObjectId
+  user                     User      @relation(fields: [userId], references: [id])
+
+  // Link to the specific Skill they are teaching
+  skillId                  String    @db.ObjectId
+  skill                    Skill     @relation(fields: [skillId], references: [id])
+
+  // Profile fields
+  teachingLevel            String?               // e.g., 'Intermediate', 'Expert'
+  educationTraining        String?              // Extra description
+  hourlyRateCents          Int                  // e.g., 1500 = $15.00
+  teachingMode             TeachingMode         // ONLINE | IN_PERSON | BOTH
+
+  // Availability stored as JSON
+  availabilityScheduleJson String?              // Example: {"Mon":["9-12"],"Tue":["14-18"]}
+
+  // Ensure same user can’t create two profiles for the same skill
+  @@unique([userId, skillId])
+}
+
+enum TeachingMode {
+  ONLINE
+  IN_PERSON
+  BOTH
+}
 
 model Goal {
   id                     String     @id @default(auto()) @map("_id") @db.ObjectId
