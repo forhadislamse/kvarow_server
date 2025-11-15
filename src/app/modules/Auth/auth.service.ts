@@ -12,29 +12,111 @@ import { registrationOtpTemplate } from "../../../helpars/template/registrationO
 import { forgotPasswordTemplate } from "../../../helpars/template/forgotPasswordTemplate";
 import { SkillLevel } from "@prisma/client";
 
-const createUserIntoDb = async (payload: any & { referredId?: string }) => {
-  const { email, password, fcmToken } = payload;
+// const createUserIntoDb = async (payload: any & { referredId?: string }) => {
+//   const { email, password, fcmToken } = payload;
 
-  // Check if user already exists
+//   // Check if user already exists
+//   const existingUser = await prisma.user.findUnique({ where: { email } });
+//   if (existingUser) {
+//     throw new ApiError(httpStatus.BAD_REQUEST, "User already exists");
+//   }
+
+//   // Hash password
+//   if (!password)
+//     throw new ApiError(httpStatus.BAD_REQUEST, "Password is required");
+//   const hashedPassword = await bcrypt.hash(password, 10);
+
+
+
+//   // Create the new user
+//   const newUser = await prisma.user.create({
+//     data: {
+//       ...payload,
+//       email,
+//       password: hashedPassword,
+//       fcmToken,
+//     },
+//   });
+
+//   if (!newUser)
+//     throw new ApiError(httpStatus.BAD_REQUEST, "Failed to create user");
+
+//   // Generate OTP
+//   const otp = Number(crypto.randomInt(1000, 9999));
+//   const otpExpires = new Date(Date.now() + 5 * 60 * 1000);
+
+//   await prisma.user.update({
+//     where: { id: newUser.id },
+//     data: { otp, otpExpiresAt: otpExpires },
+//   });
+
+//   await emailSender(
+//     newUser.email,
+//     registrationOtpTemplate(otp),
+//     "User Email Verification OTP"
+//   );
+
+//   // Generate JWT token
+//   const token = jwtHelpers.generateToken(
+//     { id: newUser.id, email: newUser.email, role: newUser.role },
+//     config.jwt.jwt_secret as Secret,
+//     config.jwt.expires_in!
+//   );
+
+//   // Return user info & token
+//   return {
+//     user: { ...newUser, password: undefined },
+//     token,
+//   };
+// };
+
+
+
+
+
+// user login service
+
+const createUserIntoDb = async (payload: any & { referredId?: string }) => {
+  const {
+    email,
+    password,
+    fcmToken,
+    categories = [],
+    subCategories = [],
+    skills = [],
+    skillLevel,
+  } = payload;
+
+  // Check if user exists
   const existingUser = await prisma.user.findUnique({ where: { email } });
   if (existingUser) {
     throw new ApiError(httpStatus.BAD_REQUEST, "User already exists");
   }
 
-  // Hash password
+  // Password required
   if (!password)
     throw new ApiError(httpStatus.BAD_REQUEST, "Password is required");
+
+  // Hash password
   const hashedPassword = await bcrypt.hash(password, 10);
 
-
-
-  // Create the new user
+  // Create new user
   const newUser = await prisma.user.create({
     data: {
-      ...payload,
       email,
       password: hashedPassword,
       fcmToken,
+
+      // 🟩 Add your interest fields (string arrays)
+      categories,
+      subCategories,
+      skills,
+      skillLevel,
+
+      // Keep other fields from payload (if needed)
+      fullName: payload.fullName ?? "",
+      phone: payload.phone ?? "",
+      gender: payload.gender ?? "Male",
     },
   });
 
@@ -50,20 +132,20 @@ const createUserIntoDb = async (payload: any & { referredId?: string }) => {
     data: { otp, otpExpiresAt: otpExpires },
   });
 
+  // Send email
   await emailSender(
     newUser.email,
     registrationOtpTemplate(otp),
     "User Email Verification OTP"
   );
 
-  // Generate JWT token
+  // Generate token
   const token = jwtHelpers.generateToken(
     { id: newUser.id, email: newUser.email, role: newUser.role },
     config.jwt.jwt_secret as Secret,
     config.jwt.expires_in!
   );
 
-  // Return user info & token
   return {
     user: { ...newUser, password: undefined },
     token,
@@ -71,131 +153,6 @@ const createUserIntoDb = async (payload: any & { referredId?: string }) => {
 };
 
 
-/* const createUserIntoDb = async (payload: any) => {
-  const { email, password, fcmToken, interests } = payload;
-
-  // 1️⃣ Check if user already exists
-  const existingUser = await prisma.user.findUnique({ where: { email } });
-  if (existingUser) throw new ApiError(httpStatus.BAD_REQUEST, "User already exists");
-  if (!password) throw new ApiError(httpStatus.BAD_REQUEST, "Password is required");
-
-  // 2️⃣ Validate and prepare interest data first
-  const interestData: any[] = [];
-  if (Array.isArray(interests) && interests.length > 0) {
-    const seenCategories = new Set(); // duplicate category check
-
-    for (const category of interests) {
-      const { categoryId, subCategories } = category;
-      if (!categoryId) continue;
-      if (seenCategories.has(categoryId)) continue; // skip duplicate category
-      seenCategories.add(categoryId);
-
-      if (Array.isArray(subCategories) && subCategories.length > 0) {
-        for (const sub of subCategories) {
-          const { selectedSubCategoryId, skills } = sub;
-          if (Array.isArray(skills) && skills.length > 0) {
-            for (const skill of skills) {
-              const level = skill.skillLevel?.toUpperCase() || "BEGINNER";
-              if (!["BEGINNER", "INTERMEDIATE", "ADVANCED"].includes(level)) {
-                throw new ApiError(httpStatus.BAD_REQUEST, `Invalid skillLevel: ${skill.skillLevel}`);
-              }
-              interestData.push({
-                categoryId,
-                selectedSubCategoryId: selectedSubCategoryId || null,
-                selectedSkillId: skill.selectedSkillId || null,
-                skillLevel: level,
-              });
-            }
-          } else {
-            interestData.push({
-              categoryId,
-              selectedSubCategoryId: selectedSubCategoryId || null,
-              selectedSkillId: null,
-              skillLevel: "BEGINNER",
-            });
-          }
-        }
-      } else {
-        interestData.push({
-          categoryId,
-          selectedSubCategoryId: null,
-          selectedSkillId: null,
-          skillLevel: "BEGINNER",
-        });
-      }
-    }
-  }
-
-  // 3️⃣ All interest data valid ✅, now create user
-  const hashedPassword = await bcrypt.hash(password, 10);
-  const newUser = await prisma.user.create({
-    data: {
-      email,
-      password: hashedPassword,
-      fcmToken: fcmToken || "",
-      fullName: payload.fullName || "",
-      role: "USER",
-    },
-  });
-
-  // 4️⃣ Add userId to interest data
-  const interestDataWithUserId = interestData.map(item => ({ ...item, userId: newUser.id }));
-
-  // 5️⃣ Save interests one by one safely (v6 compatible)
-  for (const item of interestDataWithUserId) {
-    try {
-      await prisma.userCategoryInterest.create({
-        data: item,
-      });
-    } catch (err: any) {
-      if (err.code === "P2002") {
-        console.log("Duplicate interest skipped:", item.categoryId);
-      } else {
-        throw err;
-      }
-    }
-  }
-
-  // 6️⃣ Generate OTP
-  const otp = Number(crypto.randomInt(1000, 9999));
-  const otpExpires = new Date(Date.now() + 5 * 60 * 1000);
-  await prisma.user.update({
-    where: { id: newUser.id },
-    data: { otp, otpExpiresAt: otpExpires },
-  });
-
-  // 7️⃣ Send OTP email
-  await emailSender(
-    newUser.email,
-    registrationOtpTemplate(otp),
-    "User Email Verification OTP"
-  );
-
-  // 8️⃣ Generate JWT token
-  const token = jwtHelpers.generateToken(
-    { id: newUser.id, email: newUser.email, role: newUser.role },
-    config.jwt.jwt_secret as string,
-    config.jwt.expires_in!
-  );
-
-  return {
-    user: { ...newUser, password: undefined },
-    token,
-  };
-}; */
-
-
-
-
-
-
-
-
-
-
-
-
-// user login service
 const loginUser = async (payload: {
   email: string;
   password: string;

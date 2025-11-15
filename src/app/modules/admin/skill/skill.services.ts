@@ -2,7 +2,7 @@
 import httpStatus from "http-status";
 import ApiError from "../../../../errors/ApiError";
 import prisma from "../../../../shared/prisma";
-import { SkillLevelEnum } from "@prisma/client";
+// import { SkillLevelEnum } from "@prisma/client";
 
 // ✅ Validation
 const validateSkill = async (name: string, subCategoryId: string) => {

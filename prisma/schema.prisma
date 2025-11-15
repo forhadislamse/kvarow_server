@@ -11,7 +11,7 @@ model User {
   id            String     @id @default(auto()) @map("_id") @db.ObjectId
   email         String     @unique
   password      String
-  fullName     String?    @default("")
+  fullName      String?    @default("")
   profileImage  String?    @default("")
   phone         String?    @default("")
   about         String?    @default("")
@@ -24,10 +24,20 @@ model User {
   isVerifyEmail Boolean    @default(false)
   adminReq      AdminReq   @default(PENDING)
 
+  categories    String[]    @default([])
+  subCategories String[]    @default([])
+  skills        String[]    @default([])
+  skillLevel    SkillLevel? @default(BEGINNER)
+
+  address String? @default("")
+  location String? @default("")
+  lat      Float?  @default(0)
+  lng      Float?  @default(0)
+
   isNotificationOn Boolean @default(false)
-  isUserOnline    Boolean @default(false)
-  dob            String? @default("")
-  fcmToken       String? @default("")
+  isUserOnline     Boolean @default(false)
+  dob              String? @default("")
+  fcmToken         String? @default("")
 
   stripeCustomerId String? @default("")
 
@@ -36,6 +46,7 @@ model User {
 
   Notification Notification[]
   payments     Payment[]      @relation("UserPayments")
+  goals        Goal[]         @relation("UserGoal")
 
   // ✨ Multi-step interest relation
   // interests UserCategoryInterest[]
@@ -44,37 +55,37 @@ model User {
 }
 
 model Category {
-  id               String                 @id @default(auto()) @map("_id") @db.ObjectId
-  name             String                 @unique
-  subCategories    SubCategory[]          
+  id            String        @id @default(auto()) @map("_id") @db.ObjectId
+  name          String        @unique
+  subCategories SubCategory[]
   // usersInterested  UserCategoryInterest[] 
 
-  createdAt        DateTime               @default(now())
-  updatedAt        DateTime               @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model SubCategory {
-  id          String      @id @default(auto()) @map("_id") @db.ObjectId
-  name        String
-  categoryId  String      @db.ObjectId
-  category    Category    @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  skills      Skill[]     
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  name       String
+  categoryId String   @db.ObjectId
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  skills     Skill[]
 
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([name, categoryId])
 }
 
 model Skill {
-  id            String      @id @default(auto()) @map("_id") @db.ObjectId
+  id            String       @id @default(auto()) @map("_id") @db.ObjectId
   name          String
-  subCategoryId String      @db.ObjectId
-  subCategory   SubCategory @relation( fields: [subCategoryId], references: [id], onDelete: Cascade)
-  levels   SkillLevel[]
+  subCategoryId String       @db.ObjectId
+  subCategory   SubCategory  @relation(fields: [subCategoryId], references: [id], onDelete: Cascade)
+  levels        SkillLevel[]
 
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([name, subCategoryId])
 }
@@ -115,9 +126,26 @@ enum SkillLevel {
 // }
 
 
+model Goal {
+  id                     String     @id @default(auto()) @map("_id") @db.ObjectId
 
+  // Link to User
+  userId                 String     @db.ObjectId
+  user                   User       @relation("UserGoal",fields: [userId], references: [id], onDelete: Cascade)
 
+  // Form Fields
+  title                  String
+  targetMonth            DateTime?  // Optional: যদি user month না দেয়, null হবে
 
+  // Practice Duration (in minutes)
+  practiceDurationMinutes Int?       // Optional
+
+  // Individual goals
+  specificGoals          String[]  @default([]) // Optional, default empty array
+
+  createdAt              DateTime   @default(now())
+  updatedAt              DateTime   @updatedAt
+}
 
 model Payment {
   id     String @id @default(auto()) @map("_id") @db.ObjectId
@@ -159,9 +187,6 @@ enum PaymentStatus {
   REQUIRES_CAPTURE
 }
 
-
-
-
 model Notification {
   id        String           @id @default(auto()) @map("_id") @db.ObjectId
   userId    String           @db.ObjectId
@@ -177,7 +202,8 @@ model Notification {
   createdAt DateTime         @default(now())
   updatedAt DateTime         @updatedAt
   user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-// target    User?            @relation("ReceivedNotifications", fields: [targetId], references: [id], onDelete: Cascade)
+
+  // target    User?            @relation("ReceivedNotifications", fields: [targetId], references: [id], onDelete: Cascade)
   @@map("notifications")
 }
 

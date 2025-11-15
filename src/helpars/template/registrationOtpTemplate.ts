@@ -58,10 +58,10 @@ export const registrationOtpTemplate = (otp: number) => `
         <!-- 👟 FOOTER -->
         <div style="background: #f7fafc; padding: 30px; text-align: center; border-top: 1px solid #e2e8f0;">
             <p style="color: #a0aec0; font-size: 14px; margin: 0 0 10px 0; line-height: 1.5;">
-                Made with ❤️ by <strong style="color: #667eea;">LiamBenCraig Team</strong>
+                Made with ❤️ by <strong style="color: #667eea;">kvarow Team</strong>
             </p>
             <p style="color: #a0aec0; font-size: 12px; margin: 0;">
-                © 2025 LiamBenCraig. All rights reserved.
+                © 2025 kvarow. All rights reserved.
             </p>
         </div>
     </div>
