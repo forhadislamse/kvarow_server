@@ -5,9 +5,15 @@ import catchAsync from "../../../../shared/catchAsync";
 import sendResponse from "../../../../shared/sendResponse";
 import { instructorSkillService } from "./teach.service";
 
+
 const createInstructorSkill = catchAsync(async (req: Request, res: Response) => {
   const userId = req.user.id;
-  const result = await instructorSkillService.createInstructorSkill(userId, req.body);
+
+  const result = await instructorSkillService.createInstructorSkill(
+    userId,
+    req.body
+  );
+
   sendResponse(res, {
     statusCode: httpStatus.CREATED,
     success: true,

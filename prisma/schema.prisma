@@ -8,29 +8,30 @@ datasource db {
 }
 
 model User {
-  id            String     @id @default(auto()) @map("_id") @db.ObjectId
-  email         String     @unique
-  password      String
-  fullName      String?    @default("")
+  id               String     @id @default(auto()) @map("_id") @db.ObjectId
+  email            String     @unique
+  password         String
+  age            Int?       @default(0)
+  fullName         String?    @default("")
   professionalName String?    @default("")
-  profileImage  String?    @default("")
-  phone         String?    @default("")
-  about         String?    @default("")
-  otp           Int?       @default(0)
-  role          UserRole   @default(USER)
-  otpExpiresAt  DateTime?  @default(now())
-  status        UserStatus @default(ACTIVE)
-  gender        Gender     @default(Male)
-  isOnline      Boolean    @default(false)
-  isVerifyEmail Boolean    @default(false)
-  adminReq      AdminReq   @default(PENDING)
+  profileImage     String?    @default("")
+  phone            String?    @default("")
+  about            String?    @default("")
+  otp              Int?       @default(0)
+  role             UserRole   @default(USER)
+  otpExpiresAt     DateTime?  @default(now())
+  status           UserStatus @default(ACTIVE)
+  gender           Gender     @default(Male)
+  isOnline         Boolean    @default(false)
+  isVerifyEmail    Boolean    @default(false)
+  adminReq         AdminReq   @default(PENDING)
 
   categories    String[]    @default([])
   subCategories String[]    @default([])
   skills        String[]    @default([])
   skillLevel    SkillLevel? @default(BEGINNER)
 
-  address String? @default("")
+  address  String? @default("")
   location String? @default("")
   lat      Float?  @default(0)
   lng      Float?  @default(0)
@@ -82,12 +83,11 @@ model SubCategory {
 }
 
 model Skill {
-  id            String       @id @default(auto()) @map("_id") @db.ObjectId
-  name          String
-  subCategoryId String       @db.ObjectId
-  subCategory   SubCategory  @relation(fields: [subCategoryId], references: [id], onDelete: Cascade)
-  levels        SkillLevel[]
-  instructorSkills  InstructorSkill[]
+  id               String            @id @default(auto()) @map("_id") @db.ObjectId
+  name             String
+  subCategoryId    String            @db.ObjectId
+  subCategory      SubCategory       @relation(fields: [subCategoryId], references: [id], onDelete: Cascade)
+  levels           SkillLevel[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -130,29 +130,36 @@ enum SkillLevel {
 //   updatedAt DateTime @updatedAt
 // }
 
+
+
+
 model InstructorSkill {
-  id                       String    @id @default(auto()) @map("_id") @db.ObjectId
+  id        String @id @default(auto()) @map("_id") @db.ObjectId
 
   // Link to User
-  userId                   String    @db.ObjectId
-  user                     User      @relation(fields: [userId], references: [id])
+  userId    String @db.ObjectId
+  user      User   @relation(fields: [userId], references: [id])
 
-  // Link to the specific Skill they are teaching
-  skillId                  String    @db.ObjectId
-  skill                    Skill     @relation(fields: [skillId], references: [id])
+  // Skill stored as simple string
+  skillName String
 
   // Profile fields
-  teachingLevel            String?               // e.g., 'Intermediate', 'Expert'
-  educationTraining        String?              // Extra description
-  hourlyRateCents          Int                  // e.g., 1500 = $15.00
-  teachingMode             TeachingMode         // ONLINE | IN_PERSON | BOTH
+  teachingLevel       SkillLevel  @default(BEGINNER)
+  educationTraining   String?
+  hourlyRateCents     Int
+  teachingMode        TeachingMode @default(ONLINE)
 
-  // Availability stored as JSON
-  availabilityScheduleJson String?              // Example: {"Mon":["9-12"],"Tue":["14-18"]}
+  
+  availableDays       String[] // array of strings
+  availabilitySchedule Json?   // {"from": "...", "to": "..."}
 
-  // Ensure same user can’t create two profiles for the same skill
-  @@unique([userId, skillId])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Prevent duplicate skill profile for same user
+  @@unique([userId, skillName])
 }
+
 
 enum TeachingMode {
   ONLINE
@@ -161,24 +168,24 @@ enum TeachingMode {
 }
 
 model Goal {
-  id                     String     @id @default(auto()) @map("_id") @db.ObjectId
+  id String @id @default(auto()) @map("_id") @db.ObjectId
 
   // Link to User
-  userId                 String     @db.ObjectId
-  user                   User       @relation("UserGoal",fields: [userId], references: [id], onDelete: Cascade)
+  userId String @db.ObjectId
+  user   User   @relation("UserGoal", fields: [userId], references: [id], onDelete: Cascade)
 
   // Form Fields
-  title                  String
-  targetMonth            DateTime?  // Optional: যদি user month না দেয়, null হবে
+  title       String
+  targetMonth DateTime? // Optional: যদি user month না দেয়, null হবে
 
   // Practice Duration (in minutes)
-  practiceDurationMinutes Int?       // Optional
+  practiceDurationMinutes Int? // Optional
 
   // Individual goals
-  specificGoals          String[]  @default([]) // Optional, default empty array
+  specificGoals String[] @default([]) // Optional, default empty array
 
-  createdAt              DateTime   @default(now())
-  updatedAt              DateTime   @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Payment {

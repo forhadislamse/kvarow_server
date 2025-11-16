@@ -8,6 +8,7 @@ import { subCategoryRoutes } from "../modules/admin/subCategory/subCategory.rout
 import { skillRoutes } from "../modules/admin/skill/skill.routes";
 import { goalRoutes } from "../modules/normalUser/goal/goal.routes";
 import { instructorSkillRoutes } from "../modules/normalUser/teach/teach.routes";
+import { learnRoutes } from "../modules/normalUser/learn/learn.routes";
 // import { userCategoryInterestRoutes } from "../modules/admin/userCategoryInterest/userCategoryInterest.routes";
 
 const router = express.Router();
@@ -52,6 +53,10 @@ const moduleRoutes = [
   {
     path: "/teaches",
     route: instructorSkillRoutes,
+  },
+  {
+    path: "/learn",
+    route: learnRoutes,
   },
 
 ];
