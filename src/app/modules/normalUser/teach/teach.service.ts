@@ -132,6 +132,29 @@ const getMyInstructorSkills = async (userId: string) => {
 
   if (!user) throw new ApiError(httpStatus.NOT_FOUND, "User not found");
 
+   // 3️⃣ Reviews fetch কর
+  const reviews = await prisma.review.findMany({
+    where: { receiverId: userId },
+    include: {
+      sender: {
+        select: {
+          id: true,
+          fullName: true,
+          profileImage: true,
+        },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const totalReviews = reviews.length;
+
+  const avgRating =
+    totalReviews > 0
+      ? reviews.reduce((sum, r) => sum + r.rating, 0) / totalReviews
+      : 0;
+
+
   // সব skill field আলাদা array হিসেবে map কর
   const response = {
     ...user,
@@ -142,6 +165,18 @@ const getMyInstructorSkills = async (userId: string) => {
     teachingMode: skills.map((s) => s.teachingMode),
     availableDays: skills.map((s) => s.availableDays),
     availabilitySchedule: skills.map((s) => s.availabilitySchedule),
+
+    // review section
+    reviews: reviews.map((r) => ({
+      id: r.id,
+      rating: r.rating,
+      comment: r.comment,
+      createdAt: r.createdAt,
+      sender: r.sender,
+    })),
+
+    totalReviews,
+    avgRating: Number(avgRating.toFixed(2)),
   };
 
   return response;

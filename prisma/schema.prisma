@@ -36,6 +36,8 @@ model User {
   lat      Float?  @default(0)
   lng      Float?  @default(0)
 
+  isDeleted       Boolean @default(false)
+
   isNotificationOn Boolean @default(false)
   isUserOnline     Boolean @default(false)
   dob              String? @default("")
@@ -49,6 +51,8 @@ model User {
   Notification Notification[]
   payments     Payment[]      @relation("UserPayments")
   goals        Goal[]         @relation("UserGoal")
+  sentReviews     Review[] @relation("SenderReviews") // user → reviews he sent
+  receivedReviews Review[] @relation("ReceiverReviews") // user → reviews he received
 
   // Back-reference for InstructorSkill.user relation
   instructorSkills InstructorSkill[]
@@ -307,3 +311,23 @@ model Chat {
   createdAt  DateTime @default(now())
   room       Room     @relation(fields: [roomId], references: [id])
 }
+
+
+model Review {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  senderId String @db.ObjectId
+  sender   User   @relation("SenderReviews", fields: [senderId], references: [id], onDelete: Cascade)
+
+  receiverId String @db.ObjectId
+  receiver   User   @relation("ReceiverReviews", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  rating     Int      @default(0)
+  comment    String   @default("")
+  // isApproved Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("reviews")
+}
+

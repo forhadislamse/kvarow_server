@@ -9,6 +9,8 @@ import { skillRoutes } from "../modules/admin/skill/skill.routes";
 import { goalRoutes } from "../modules/normalUser/goal/goal.routes";
 import { instructorSkillRoutes } from "../modules/normalUser/teach/teach.routes";
 import { learnRoutes } from "../modules/normalUser/learn/learn.routes";
+import { reviewRoutes } from "../modules/normalUser/review/review.routes";
+import { adminUserRoutes } from "../modules/admin/users/user.route";
 // import { userCategoryInterestRoutes } from "../modules/admin/userCategoryInterest/userCategoryInterest.routes";
 
 const router = express.Router();
@@ -22,6 +24,11 @@ const moduleRoutes = [
     path: "/users",
     route: userRoutes,
   },
+  {
+    path: "/admin-users",
+    route: adminUserRoutes,
+  },
+
   {
     path: "/categories",
     route: categoryRoutes,
@@ -57,6 +64,10 @@ const moduleRoutes = [
   {
     path: "/learn",
     route: learnRoutes,
+  },
+  {
+    path: "/reviews",
+    route: reviewRoutes,
   },
 
 ];
