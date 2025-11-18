@@ -53,7 +53,7 @@ const createSkill = async (
 //   });
 // };
 
-const getAllSkills = async (search?: string) => {
+/* const getAllSkills = async (search?: string) => {
   return await prisma.skill.findMany({
     where: search
       ? {
@@ -85,7 +85,47 @@ const getAllSkills = async (search?: string) => {
 
     orderBy: { name: "asc" }, // alphabetical order
   });
+}; */
+
+const getAllSkills = async (search?: string) => {
+  // search string ke split kore array banano
+  const searchTerms = search?.split(",").map(term => term.trim());
+
+  return await prisma.skill.findMany({
+    where: searchTerms && searchTerms.length > 0
+      ? {
+          OR: searchTerms.map(term => ({
+            OR: [
+              {
+                name: {
+                  contains: term,
+                  mode: "insensitive", // skill name
+                },
+              },
+              {
+                subCategory: {
+                  name: {
+                    contains: term,
+                    mode: "insensitive", // subcategory name
+                  },
+                },
+              },
+            ],
+          })),
+        }
+      : {},
+
+    select: {
+      name: true, // skill name
+      subCategory: {
+        select: { name: true }, // related subcategory
+      },
+    },
+
+    orderBy: { name: "asc" },
+  });
 };
+
 
 // ✅ Get Skill By ID
 const getSkillById = async (id: string) => {

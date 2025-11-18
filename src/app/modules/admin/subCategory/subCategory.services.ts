@@ -52,7 +52,7 @@ const createSubCategory = async (
 //   });
 // };
 
-const getAllSubCategories = async (search?: string) => {
+/* const getAllSubCategories = async (search?: string) => {
   return await prisma.subCategory.findMany({
     where: search
       ? {
@@ -87,7 +87,50 @@ const getAllSubCategories = async (search?: string) => {
 
     orderBy: { name: "asc" }, // alphabetical order
   });
+}; */
+
+const getAllSubCategories = async (search?: string) => {
+  // search string ke split kore array banano
+  const searchTerms = search?.split(",").map(term => term.trim());
+
+  return await prisma.subCategory.findMany({
+    where: searchTerms && searchTerms.length > 0
+      ? {
+          OR: searchTerms.map(term => ({
+            OR: [
+              {
+                name: {
+                  contains: term,
+                  mode: "insensitive", // subcategory name
+                },
+              },
+              {
+                category: {
+                  name: {
+                    contains: term,
+                    mode: "insensitive", // category name
+                  },
+                },
+              },
+            ],
+          })),
+        }
+      : {},
+
+    select: {
+      name: true, // subcategory name
+      // category: {
+      //   select: { name: true }, // parent category name
+      // },
+      skills: {
+        select: { name: true }, // subcategory related skills
+      },
+    },
+
+    orderBy: { name: "asc" },
+  });
 };
+
 
 // ✅ Get By ID
 const getSubCategoryById = async (id: string) => {

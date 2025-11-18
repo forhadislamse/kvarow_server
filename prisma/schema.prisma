@@ -218,6 +218,7 @@ model Goal {
 // model Order {
 //   id String @id @default(auto()) @map("_id") @db.ObjectId
 
+//   totalPrice     Int?      // subTotal + taskerFee + adminFee
 //   // Instructor Skill reference (যে skill hire করা হয়েছে)
 //   skillId String @db.ObjectId
 //   skill   InstructorSkill @relation(fields: [skillId], references: [id], onDelete: Cascade)
@@ -230,22 +231,15 @@ model Goal {
 //   studentId String @db.ObjectId
 //   student   User @relation("StudentOrders", fields: [studentId], references: [id], onDelete: Cascade)
 
-//   // Price & fees
-//   hourlyRateCents Int
-//   hours          Int
-//   subTotal       Int       // hourlyRate * hours
-//   taskerFee      Int?      // additional fee for instructor if needed
-//   adminFee       Int?      // 3% admin fee
-//   totalPrice     Int?      // subTotal + taskerFee + adminFee
 
 //   // Payment status
-//   paymentMethod PaymentMethod @default(CARD)
+//   paymentMethod PaymentType @default(CARD)
 //   paymentStatus PaymentStatus @default(PENDING)
-//   taskerReceiveStatus PaymentStatus @default(PENDING)
 
 //   // Actual amounts
+//   teacherReceiveStatus PaymentStatus @default(PENDING)
 //   userPayAmount        Int? // student pays
-//   taskerReceivedAmount Int? // instructor receives
+//   teacherReceivedAmount Int? // instructor receives
 //   adminEarnings        Int? // admin earnings
 
 //   // Order status

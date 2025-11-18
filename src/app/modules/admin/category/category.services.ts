@@ -49,27 +49,55 @@ const createCategory = async (role: string, payload: { name: string }) => {
 //   });
 // };
 
+// const getAllCategories = async (search?: string) => {
+//   return await prisma.category.findMany({
+//     where: search
+//       ? {
+//           name: {
+//             contains: search,
+//             mode: "insensitive", // case-insensitive search
+//           },
+//         }
+//       : {}, // search না থাকলে সব category fetch হবে
+
+//     select: {
+//       name: true, // শুধু category name
+//       subCategories: {
+//         select: { name: true }, // শুধু subcategory name
+//       },
+//     },
+
+//     orderBy: { name: "asc" }, // alphabetical order
+//   });
+// };
+
 const getAllCategories = async (search?: string) => {
+  // search string ke split kore array banano
+  const searchTerms = search?.split(",").map(term => term.trim());
+
   return await prisma.category.findMany({
-    where: search
+    where: searchTerms && searchTerms.length > 0
       ? {
-          name: {
-            contains: search,
-            mode: "insensitive", // case-insensitive search
-          },
+          OR: searchTerms.map(term => ({
+            name: {
+              contains: term,
+              mode: "insensitive",
+            },
+          })),
         }
-      : {}, // search না থাকলে সব category fetch হবে
+      : {},
 
     select: {
-      name: true, // শুধু category name
+      name: true,
       subCategories: {
-        select: { name: true }, // শুধু subcategory name
+        select: { name: true }, // oi category er sob subcategory fetch hobe
       },
     },
 
-    orderBy: { name: "asc" }, // alphabetical order
+    orderBy: { name: "asc" },
   });
 };
+
 
 const getCategoryById = async (id: string) => {
   const category = await prisma.category.findUnique({
