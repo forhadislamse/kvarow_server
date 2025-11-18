@@ -57,6 +57,21 @@ const getInstructorBySkillId = catchAsync(async (req, res) => {
   });
 });
 
+const sendOrderOffer = catchAsync(async (req, res) => {
+  const studentId = req.user.id;
+  const data = req.body;
+
+  const result = await learnService.sendOrderOffer({ data, studentId });
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Order created successfully",
+    data: result,
+  });
+});
+
+
 const getInstructorByUserIdController = catchAsync(
   async (req: Request, res: Response) => {
     const currentUserId = req.user.id;
@@ -77,5 +92,6 @@ export const learnController = {
   getAllInstructorsController,
     searchInstructorsController,
     getInstructorBySkillId,
+    sendOrderOffer,
     getInstructorByUserIdController,
 };

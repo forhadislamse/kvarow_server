@@ -18,6 +18,9 @@ router.get(
   auth(),
   learnController.getInstructorBySkillId
 );
+
+router.post('/send-offer', auth(), learnController.sendOrderOffer);
+
 router.get("/instructor/:userId", auth(), learnController.getInstructorByUserIdController);
 
 

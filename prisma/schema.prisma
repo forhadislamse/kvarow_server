@@ -11,7 +11,7 @@ model User {
   id               String     @id @default(auto()) @map("_id") @db.ObjectId
   email            String     @unique
   password         String
-  age            Int?       @default(0)
+  age              Int?       @default(0)
   fullName         String?    @default("")
   professionalName String?    @default("")
   profileImage     String?    @default("")
@@ -36,7 +36,7 @@ model User {
   lat      Float?  @default(0)
   lng      Float?  @default(0)
 
-  isDeleted       Boolean @default(false)
+  isDeleted Boolean @default(false)
 
   isNotificationOn Boolean @default(false)
   isUserOnline     Boolean @default(false)
@@ -48,11 +48,14 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  Notification Notification[]
-  payments     Payment[]      @relation("UserPayments")
-  goals        Goal[]         @relation("UserGoal")
-  sentReviews     Review[] @relation("SenderReviews") // user → reviews he sent
-  receivedReviews Review[] @relation("ReceiverReviews") // user → reviews he received
+  Notification     Notification[]
+ paymentsSend     Payment[]   @relation("PaymentSender")
+  paymentsReceived Payment[]   @relation("PaymentReceiver")
+  goals            Goal[]         @relation("UserGoal")
+  sentReviews      Review[]       @relation("SenderReviews") // user → reviews he sent
+  receivedReviews  Review[]       @relation("ReceiverReviews") // user → reviews he received
+  studentOrders    Order[]        @relation("StudentOrders") // user as student
+  instructorOrders Order[]        @relation("InstructorOrders") // user as instructor
 
   // Back-reference for InstructorSkill.user relation
   instructorSkills InstructorSkill[]
@@ -87,11 +90,11 @@ model SubCategory {
 }
 
 model Skill {
-  id               String            @id @default(auto()) @map("_id") @db.ObjectId
-  name             String
-  subCategoryId    String            @db.ObjectId
-  subCategory      SubCategory       @relation(fields: [subCategoryId], references: [id], onDelete: Cascade)
-  levels           SkillLevel[]
+  id            String       @id @default(auto()) @map("_id") @db.ObjectId
+  name          String
+  subCategoryId String       @db.ObjectId
+  subCategory   SubCategory  @relation(fields: [subCategoryId], references: [id], onDelete: Cascade)
+  levels        SkillLevel[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -134,36 +137,33 @@ enum SkillLevel {
 //   updatedAt DateTime @updatedAt
 // }
 
-
-
-
 model InstructorSkill {
-  id        String @id @default(auto()) @map("_id") @db.ObjectId
+  id String @id @default(auto()) @map("_id") @db.ObjectId
 
   // Link to User
-  userId    String @db.ObjectId
-  user      User   @relation(fields: [userId], references: [id])
+  userId String @db.ObjectId
+  user   User   @relation(fields: [userId], references: [id])
 
   // Skill stored as simple string
   skillName String
 
   // Profile fields
-  teachingLevel       SkillLevel  @default(BEGINNER)
-  educationTraining   String?
-  hourlyRateCents     Int
-  teachingMode        TeachingMode @default(ONLINE)
+  teachingLevel     SkillLevel   @default(BEGINNER)
+  educationTraining String?
+  hourlyRateCents   Int
+  teachingMode      TeachingMode @default(ONLINE)
 
-  
-  availableDays       String[] // array of strings
-  availabilitySchedule Json?   // {"from": "...", "to": "..."}
+  availableDays        String[] // array of strings
+  availabilitySchedule Json? // {"from": "...", "to": "..."}
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  orders Order[]
+
   // Prevent duplicate skill profile for same user
   @@unique([userId, skillName])
 }
-
 
 enum TeachingMode {
   ONLINE
@@ -192,74 +192,124 @@ model Goal {
   updatedAt DateTime @updatedAt
 }
 
+model Order {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
 
-// model Order {
-//   id String @id @default(auto()) @map("_id") @db.ObjectId
+  price Float? // subTotal + taskerFee + adminFee
+  orderId    String          @unique // Unique identifier for the order
+  // Instructor Skill reference (যে skill hire করা হয়েছে)
+  skillId    String          @db.ObjectId
+  skill      InstructorSkill @relation(fields: [skillId], references: [id], onDelete: Cascade)
 
-//   totalPrice     Int?      // subTotal + taskerFee + adminFee
-//   // Instructor Skill reference (যে skill hire করা হয়েছে)
-//   skillId String @db.ObjectId
-//   skill   InstructorSkill @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  // Instructor info
+  instructorId String @db.ObjectId
+  instructor   User   @relation("InstructorOrders", fields: [instructorId], references: [id], onDelete: Cascade)
 
-//   // Instructor info
-//   instructorId String @db.ObjectId
-//   instructor   User @relation("InstructorOrders", fields: [instructorId], references: [id], onDelete: Cascade)
+  // Student / buyer info
+  studentId String @db.ObjectId
+  student   User   @relation("StudentOrders", fields: [studentId], references: [id], onDelete: Cascade)
 
-//   // Student / buyer info
-//   studentId String @db.ObjectId
-//   student   User @relation("StudentOrders", fields: [studentId], references: [id], onDelete: Cascade)
+  // Payment status
+  paymentMethod PaymentType   @default(CARD)
+  paymentStatus PaymentStatus @default(PENDING)
 
+  // Actual amounts
+  teacherReceiveStatus  PaymentStatus @default(PENDING)
+  userPayAmount         Int? // student pays
+  teacherReceivedAmount Int? // instructor receives
+  adminEarnings         Int? // admin earnings
 
-//   // Payment status
-//   paymentMethod PaymentType @default(CARD)
-//   paymentStatus PaymentStatus @default(PENDING)
+  //   // ─── Pricing calculations
+  // // e.g. instructor hourlyRateCents = 15 ($15 → 1500 cents)
+  // subTotalCents        Int? // base price for selected hours
+  // adminFeePercent      Float? // default 3.0
+  // adminFeeCents        Int?
+  // teacherFeePercent    Float? // default 0 if not needed, or 0–? future
+  // teacherFeeCents      Int?
 
-//   // Actual amounts
-//   teacherReceiveStatus PaymentStatus @default(PENDING)
-//   userPayAmount        Int? // student pays
-//   teacherReceivedAmount Int? // instructor receives
-//   adminEarnings        Int? // admin earnings
+  // Order status
+  status OrderStatus @default(PENDING)
 
-//   // Order status
-//   status OrderStatus @default(PENDING)
-
-//   // Timestamps
-//   createdAt DateTime @default(now())
-//   updatedAt DateTime @updatedAt
-
-//   payments Payment[] @relation("OrderPayments")
-
-//   @@map("orders")
-// }
-
-// enum OrderStatus {
-//   PENDING
-//   CONFIRMED
-//   COMPLETED
-//   CANCELLED
-// }
-
-model Payment {
-  id     String @id @default(auto()) @map("_id") @db.ObjectId
-  userId String @db.ObjectId
-  user   User   @relation("UserPayments", fields: [userId], references: [id], onDelete: Cascade)
-
-  amount         Float?        @default(0)
-  paymentType    PaymentType?  @default(CARD) // CASH, CARD
-  paymentMethod  String?       @default("") // CARD, WALLET, STRIPE
-  paymentGateway String?       @default("") // Stripe, PayPal, etc.
-  currency       String?       @default("USD")
-  // method   PaymentMethod @default(STRIPE)
-  status         PaymentStatus @default(PENDING)
-
-  transactionId String? // Stripe/Wallet transaction reference
-  paymentIntent String? // Stripe intent id or equivalent
-
+  // Timestamps
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  payments Payment[] @relation("OrderPayments")
+
+  @@map("orders")
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+}
+
+// model Payment {
+//   id     String @id @default(auto()) @map("_id") @db.ObjectId
+//   userId String @db.ObjectId
+//   user   User   @relation("UserPayments", fields: [userId], references: [id], onDelete: Cascade)
+
+//   amount         Float?        @default(0)
+//   paymentType    PaymentType?  @default(CARD) // CASH, CARD
+//   paymentMethod  String?       @default("") // CARD, WALLET, STRIPE
+//   paymentGateway String?       @default("") // Stripe, PayPal, etc.
+//   currency       String?       @default("USD")
+//   // method   PaymentMethod @default(STRIPE)
+//   status         PaymentStatus @default(PENDING)
+
+//   transactionId String? // Stripe/Wallet transaction reference
+//   paymentIntent String? // Stripe intent id or equivalent
+
+//   createdAt DateTime @default(now())
+//   updatedAt DateTime @updatedAt
+//   order     Order?   @relation(fields: [orderId], references: [id])
+//   orderId   String?  @db.ObjectId
+
+//   @@map("payments")
+// }
+
+model Payment {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  paymentId String   // Stripe paymentIntent ID or custom ID
+
+  // Relation with Order
+  orderId String? @db.ObjectId
+  order   Order?  @relation("OrderPayments", fields: [orderId], references: [id], onDelete: Cascade)
+
+  // Who paid (student)
+  senderId String? @db.ObjectId
+  sender   User?   @relation("PaymentSender", fields: [senderId], references: [id], onDelete: Cascade)
+
+  // Who receives (instructor)
+  receiverId String? @db.ObjectId
+  receiver   User?   @relation("PaymentReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  amount         Float            // base amount
+  platformFee    Float?           // admin fee (3% etc)
+  instructorGets Float?           // instructor receives final amount
+  transactionId  String? @unique  // stripe or custom
+
+  paymentMethod PaymentType @default(CARD)
+  paymentStatus PaymentStatus @default(PENDING)
+
+  stripePaymentIntentId       String?
+  stripePlatformFeeTransferId String?
+  stripeInstructorTransferId  String?
+  refundId                    String?
+
+  metadata Json?
+  isHold   Boolean   @default(false)
+  holdReleaseDate DateTime?
+
+  paymentDate DateTime? @default(now())
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
   @@map("payments")
 }
+
 
 enum PaymentType {
   CASH
@@ -359,7 +409,6 @@ model Chat {
   room       Room     @relation(fields: [roomId], references: [id])
 }
 
-
 model Review {
   id String @id @default(auto()) @map("_id") @db.ObjectId
 
@@ -369,12 +418,11 @@ model Review {
   receiverId String @db.ObjectId
   receiver   User   @relation("ReceiverReviews", fields: [receiverId], references: [id], onDelete: Cascade)
 
-  rating     Int      @default(0)
-  comment    String   @default("")
+  rating    Int      @default(0)
+  comment   String   @default("")
   // isApproved Boolean  @default(false)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("reviews")
 }
-

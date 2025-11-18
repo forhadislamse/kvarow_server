@@ -2,6 +2,7 @@ import { SkillLevel, TeachingMode } from "@prisma/client";
 import prisma from "../../../../shared/prisma";
 import ApiError from "../../../../errors/ApiError";
 import httpStatus from "http-status";
+import { getTransactionId } from "../../../../shared/getTransactionId";
 
 
 
@@ -189,6 +190,85 @@ const getInstructorBySkillIdService = async (currentUserId: string, skillId: str
   };
 };
 
+const sendOrderOffer = async ({
+  data,
+  studentId,
+}: {
+  data: any;
+  studentId: string;
+}) => {
+
+  const student = await prisma.user.findUnique({
+    where: { id: studentId },
+  });
+  if (!student) throw new ApiError(httpStatus.NOT_FOUND, "Student not found");
+
+  const { instructorId, skillId, price } = data;
+
+  if (!instructorId || !skillId || !price) {
+    throw new ApiError(
+      httpStatus.BAD_REQUEST,
+      "instructorId, skillId and price are required"
+    );
+  }
+
+  const instructor = await prisma.user.findUnique({
+    where: { id: instructorId },
+  });
+  if (!instructor)
+    throw new ApiError(httpStatus.NOT_FOUND, "Instructor not found");
+
+  const skill = await prisma.instructorSkill.findUnique({
+    where: { id: skillId },
+  });
+  if (!skill)
+    throw new ApiError(httpStatus.NOT_FOUND, "Instructor skill not found");
+
+  // Generate unique orderId
+  let orderId = getTransactionId();
+  while (await prisma.order.findUnique({ where: { orderId } })) {
+    orderId = getTransactionId();
+  }
+
+  // 🟢 3% Admin fee auto calculate
+  const adminFeePercent = 3;
+  const adminEarnings = (price * adminFeePercent) / 100;
+
+  // 🟢 Instructor receives
+  const teacherReceivedAmount = price - adminEarnings;
+
+  // 🟢 Student pays full price
+  const userPayAmount = price;
+
+  // Create order
+  const result = await prisma.order.create({
+    data: {
+      orderId,
+      price,
+      skillId,
+      instructorId,
+      studentId,
+
+      adminEarnings,
+      teacherReceivedAmount,
+      userPayAmount,
+
+      status: "PENDING",
+      paymentStatus: "PENDING",
+      teacherReceiveStatus: "PENDING",
+    },
+    include: {
+      instructor: true,
+      student: true,
+      skill: true,
+    },
+  });
+
+
+  return result;
+};
+
+
 const getInstructorByUserIdService = async (currentUserId: string, userId: string) => {
   // 1️⃣ Fetch all skills
   const skillsData = await prisma.instructorSkill.findMany({
@@ -249,5 +329,6 @@ export const learnService = {
   getAllInstructors,
 searchInstructorsService,
   getInstructorBySkillIdService,
+  sendOrderOffer,
     getInstructorByUserIdService,
 };
