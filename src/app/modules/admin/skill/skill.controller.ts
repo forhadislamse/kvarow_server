@@ -18,19 +18,13 @@ const createSkill = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-// const getAllSkills = catchAsync(async (req: Request, res: Response) => {
-//   const result = await skillService.getAllSkills();
-//   sendResponse(res, {
-//     statusCode: httpStatus.OK,
-//     success: true,
-//     message: "Skills fetched successfully",
-//     data: result,
-//   });
-// });
 
-const getAllSkills = catchAsync(async (req: Request, res: Response) => {
-  const search = req.query.search as string | undefined; // optional search query
-  const result = await skillService.getAllSkills(search);
+
+const getAllSkills= catchAsync(async (req: Request, res: Response) => {
+  const singleSearch = req.query.singleSearch as string | undefined;
+  const search = req.query.search as string | undefined;
+
+  const result = await skillService.getAllSkills(singleSearch, search);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,

@@ -42,36 +42,9 @@ const createCategory = async (role: string, payload: { name: string }) => {
   return prisma.category.create({ data: { name: payload.name } });
 };
 
-// const getAllCategories = async () => {
-//   return await prisma.category.findMany({
-//     include: { subCategories: true },
-//     orderBy: { createdAt: "desc" },
-//   });
-// };
 
-// const getAllCategories = async (search?: string) => {
-//   return await prisma.category.findMany({
-//     where: search
-//       ? {
-//           name: {
-//             contains: search,
-//             mode: "insensitive", // case-insensitive search
-//           },
-//         }
-//       : {}, // search না থাকলে সব category fetch হবে
 
-//     select: {
-//       name: true, // শুধু category name
-//       subCategories: {
-//         select: { name: true }, // শুধু subcategory name
-//       },
-//     },
-
-//     orderBy: { name: "asc" }, // alphabetical order
-//   });
-// };
-
-const getAllCategories = async (search?: string) => {
+/* const getAllCategories = async (search?: string) => {
   // search string ke split kore array banano
   const searchTerms = search?.split(",").map(term => term.trim());
 
@@ -94,6 +67,39 @@ const getAllCategories = async (search?: string) => {
       },
     },
 
+    orderBy: { name: "asc" },
+  });
+}; */
+
+const getAllCategories = async (singleSearch?: string, search?: string) => {
+  let whereClause = {};
+
+  if (singleSearch) {
+    // single search
+    whereClause = {
+      name: {
+        contains: singleSearch,
+        mode: "insensitive",
+      },
+    };
+  } else if (search) {
+    // multiple search
+    const searchTerms = search.split(",").map(term => term.trim());
+    whereClause = {
+      OR: searchTerms.map(term => ({
+        name: { contains: term, mode: "insensitive" },
+      })),
+    };
+  }
+
+  return await prisma.category.findMany({
+    where: whereClause,
+    select: {
+      name: true,
+      subCategories: {
+        select: { name: true },
+      },
+    },
     orderBy: { name: "asc" },
   });
 };

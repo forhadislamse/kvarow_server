@@ -16,18 +16,13 @@ const createSubCategory = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-// const getAllSubCategories = catchAsync(async (req: Request, res: Response) => {
-//   const result = await subCategoryService.getAllSubCategories();
-//   sendResponse(res, {
-//     statusCode: httpStatus.OK,
-//     success: true,
-//     message: "SubCategories fetched successfully",
-//     data: result,
-//   });
-// });
-const getAllSubCategories = catchAsync(async (req: Request, res: Response) => {
-  const search = req.query.search as string | undefined; // optional search query
-  const result = await subCategoryService.getAllSubCategories(search);
+
+
+const getAllSubCategories= catchAsync(async (req: Request, res: Response) => {
+  const singleSearch = req.query.singleSearch as string | undefined;
+  const search = req.query.search as string | undefined;
+
+  const result = await subCategoryService.getAllSubCategories(singleSearch, search);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,

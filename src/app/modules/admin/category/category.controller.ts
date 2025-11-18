@@ -25,21 +25,26 @@ const createCategory = catchAsync(async (req, res) => {
   });
 });
 
-// Get all categories
-// const getAllCategories = catchAsync(async (req, res) => {
-//   const result = await categoryServices.getAllCategories();
-//   sendResponse(res, {
-//     statusCode: httpStatus.OK,
-//     success: true,
-//     message: "Categories fetched successfully",
-//     data: result,
-//   });
-// });
 
-const getAllCategories = catchAsync(async (req, res) => {
+
+/* const getAllCategories = catchAsync(async (req, res) => {
   const search = req.query.search as string | undefined; // optional search query
 
   const result = await categoryServices.getAllCategories(search);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Categories fetched successfully",
+    data: result,
+  });
+}); */
+
+const getAllCategories=catchAsync(async (req, res) => {
+  const singleSearch = req.query.singleSearch as string | undefined;
+  const search = req.query.search as string | undefined;
+
+  const result = await categoryServices.getAllCategories(singleSearch, search);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,

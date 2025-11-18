@@ -44,92 +44,46 @@ const createSubCategory = async (
   return await prisma.subCategory.create({ data: payload });
 };
 
-// ✅ Get All
-// const getAllSubCategories = async () => {
-//   return await prisma.subCategory.findMany({
-//     include: { category: true, skills: true },
-//     orderBy: { createdAt: "desc" },
-//   });
-// };
 
-/* const getAllSubCategories = async (search?: string) => {
-  return await prisma.subCategory.findMany({
-    where: search
-      ? {
-          OR: [
-            {
-              name: {
-                contains: search,
-                mode: "insensitive", // subcategory name search
-              },
-            },
-            {
-              category: {
-                name: {
-                  contains: search,
-                  mode: "insensitive", // category name search
-                },
-              },
-            },
-          ],
-        }
-      : {},
 
-    select: {
-      name: true, // subcategory name
-      category: {
-        select: { name: true }, // category name
-      },
-      skills: {
-        select: { name: true }, // subcategory related skills name
-      },
-    },
+const getAllSubCategories = async (singleSearch?: string, search?: string) => {
+  let whereClause = {};
 
-    orderBy: { name: "asc" }, // alphabetical order
-  });
-}; */
-
-const getAllSubCategories = async (search?: string) => {
-  // search string ke split kore array banano
-  const searchTerms = search?.split(",").map(term => term.trim());
+  if (singleSearch) {
+    // single search
+    whereClause = {
+      OR: [
+        {
+          name: { contains: singleSearch, mode: "insensitive" }, // subcategory name
+        },
+        {
+          category: { name: { contains: singleSearch, mode: "insensitive" } }, // category name
+        },
+      ],
+    };
+  } else if (search) {
+    // multiple search
+    const searchTerms = search.split(",").map(term => term.trim());
+    whereClause = {
+      OR: searchTerms.map(term => ({
+        OR: [
+          { name: { contains: term, mode: "insensitive" } }, // subcategory
+          { category: { name: { contains: term, mode: "insensitive" } } }, // category
+        ],
+      })),
+    };
+  }
 
   return await prisma.subCategory.findMany({
-    where: searchTerms && searchTerms.length > 0
-      ? {
-          OR: searchTerms.map(term => ({
-            OR: [
-              {
-                name: {
-                  contains: term,
-                  mode: "insensitive", // subcategory name
-                },
-              },
-              {
-                category: {
-                  name: {
-                    contains: term,
-                    mode: "insensitive", // category name
-                  },
-                },
-              },
-            ],
-          })),
-        }
-      : {},
-
+    where: whereClause,
     select: {
       name: true, // subcategory name
-      // category: {
-      //   select: { name: true }, // parent category name
-      // },
-      skills: {
-        select: { name: true }, // subcategory related skills
-      },
+      skills: { select: { name: true } }, // related skills
     },
-
     orderBy: { name: "asc" },
   });
 };
+
 
 
 // ✅ Get By ID

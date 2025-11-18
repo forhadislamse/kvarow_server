@@ -46,85 +46,45 @@ const createSkill = async (
 };
 
 
-// const getAllSkills = async () => {
-//   return await prisma.skill.findMany({
-//     include: { subCategory: true },
-//     orderBy: { createdAt: "desc" },
-//   });
-// };
 
-/* const getAllSkills = async (search?: string) => {
-  return await prisma.skill.findMany({
-    where: search
-      ? {
-          OR: [
-            {
-              name: {
-                contains: search,
-                mode: "insensitive", // skill name search
-              },
-            },
-            {
-              subCategory: {
-                name: {
-                  contains: search,
-                  mode: "insensitive", // subcategory name search
-                },
-              },
-            },
-          ],
-        }
-      : {},
+const getAllSkills = async (singleSearch?: string, search?: string) => {
+  let whereClause = {};
 
-    select: {
-      name: true, // skill name
-      subCategory: {
-        select: { name: true }, // related subcategory name
-      },
-    },
-
-    orderBy: { name: "asc" }, // alphabetical order
-  });
-}; */
-
-const getAllSkills = async (search?: string) => {
-  // search string ke split kore array banano
-  const searchTerms = search?.split(",").map(term => term.trim());
+  if (singleSearch) {
+    // single skill search
+    whereClause = {
+      OR: [
+        {
+          name: { contains: singleSearch, mode: "insensitive" }, // skill name
+        },
+        {
+          subCategory: { name: { contains: singleSearch, mode: "insensitive" } }, // subcategory name
+        },
+      ],
+    };
+  } else if (search) {
+    // multiple skill search
+    const searchTerms = search.split(",").map(term => term.trim());
+    whereClause = {
+      OR: searchTerms.map(term => ({
+        OR: [
+          { name: { contains: term, mode: "insensitive" } }, // skill name
+          { subCategory: { name: { contains: term, mode: "insensitive" } } }, // subcategory name
+        ],
+      })),
+    };
+  }
 
   return await prisma.skill.findMany({
-    where: searchTerms && searchTerms.length > 0
-      ? {
-          OR: searchTerms.map(term => ({
-            OR: [
-              {
-                name: {
-                  contains: term,
-                  mode: "insensitive", // skill name
-                },
-              },
-              {
-                subCategory: {
-                  name: {
-                    contains: term,
-                    mode: "insensitive", // subcategory name
-                  },
-                },
-              },
-            ],
-          })),
-        }
-      : {},
-
+    where: whereClause,
     select: {
       name: true, // skill name
-      subCategory: {
-        select: { name: true }, // related subcategory
-      },
+      subCategory: { select: { name: true } }, // related subcategory
     },
-
     orderBy: { name: "asc" },
   });
 };
+
 
 
 // ✅ Get Skill By ID
