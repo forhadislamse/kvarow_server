@@ -132,6 +132,63 @@ const searchInstructorsService = async (
   }));
 };
 
+const getInstructorBySkillIdService = async (currentUserId: string, skillId: string) => {
+  // 1️⃣ First fetch skill by skillId
+  const targetSkill = await prisma.instructorSkill.findUnique({
+    where: { id: skillId },
+  });
+
+  if (!targetSkill) {
+    throw new ApiError(httpStatus.NOT_FOUND, "Skill not found");
+  }
+
+  const userId = targetSkill.userId; // we will use this to fetch all skills of that user
+
+  // 2️⃣ Fetch all skills of this instructor
+  const skillsData = await prisma.instructorSkill.findMany({
+    where: { userId },
+    orderBy: { hourlyRateCents: "desc" },
+  });
+
+  // 3️⃣ Fetch user info
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      fullName: true,
+      professionalName: true,
+      profileImage: true,
+      about: true,
+      email: true,
+      skillLevel: true,
+    },
+  });
+
+  if (!user) throw new ApiError(httpStatus.NOT_FOUND, "User not found");
+
+  // 4️⃣ Skills array (main object list)
+  const skills = skillsData.map((s) => ({
+    skillName: s.skillName,
+    teachingLevel: s.teachingLevel,
+    hourlyRateCents: s.hourlyRateCents,
+    teachingMode: s.teachingMode,
+  }));
+
+  // 5️⃣ Separate arrays
+  const educationTraining = skillsData.map((s) => s.educationTraining || "");
+  const availableDays = skillsData.map((s) => s.availableDays || []);
+  const availabilitySchedule = skillsData.map((s) => s.availabilitySchedule || null);
+
+  // 6️⃣ Final response
+  return {
+    ...user,
+    skills,
+    educationTraining,
+    availableDays,
+    availabilitySchedule,
+  };
+};
+
 const getInstructorByUserIdService = async (currentUserId: string, userId: string) => {
   // 1️⃣ Fetch all skills
   const skillsData = await prisma.instructorSkill.findMany({
@@ -165,19 +222,23 @@ const getInstructorByUserIdService = async (currentUserId: string, userId: strin
     teachingLevel: s.teachingLevel,
     hourlyRateCents: s.hourlyRateCents,
     teachingMode: s.teachingMode,
+    educationTraining: s.educationTraining,
+    availableDays: s.availableDays,
+    availabilitySchedule: s.availabilitySchedule,
+
   }));
 
   // 4️⃣ Map other arrays separately
-  const educationTraining = skillsData.map((s) => s.educationTraining || "");
-  const availableDays = skillsData.map((s) => s.availableDays || []);
-  const availabilitySchedule = skillsData.map((s) => s.availabilitySchedule || null);
+  // const educationTraining = skillsData.map((s) => s.educationTraining || "");
+  // const availableDays = skillsData.map((s) => s.availableDays || []);
+  // const availabilitySchedule = skillsData.map((s) => s.availabilitySchedule || null);
 
   return {
     ...user,
     skills,
-    educationTraining,
-    availableDays,
-    availabilitySchedule,
+    // educationTraining,
+    // availableDays,
+    // availabilitySchedule,
   };
 };
 
@@ -187,5 +248,6 @@ const getInstructorByUserIdService = async (currentUserId: string, userId: strin
 export const learnService = {
   getAllInstructors,
 searchInstructorsService,
+  getInstructorBySkillIdService,
     getInstructorByUserIdService,
 };

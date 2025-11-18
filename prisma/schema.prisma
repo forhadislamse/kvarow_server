@@ -192,6 +192,81 @@ model Goal {
   updatedAt DateTime @updatedAt
 }
 
+
+// model Order {
+//   id           String      @id @default(auto()) @map("_id") @db.ObjectId
+//   studentId    String      @db.ObjectId
+//   student      User        @relation(fields: [studentId], references: [id])
+//   instructorId String      @db.ObjectId
+//   instructor   User        @relation(fields: [instructorId], references: [id])
+//   skillId      String      @db.ObjectId    // reference to InstructorSkill._id
+//   skillName    String
+//   teachingLevel SkillLevel
+//   hourlyRateCents Int
+//   hours        Int             // how many hours hired
+//   subTotal     Int             // hourlyRateCents * hours
+//   adminFee     Int             // 3% of subtotal
+//   totalPrice   Int             // subtotal + adminFee
+//   teachingMode TeachingMode
+//   status       OrderStatus @default(PENDING)
+//   createdAt    DateTime    @default(now())
+//   updatedAt    DateTime    @updatedAt
+
+//   @@map("orders")
+// }
+
+// model Order {
+//   id String @id @default(auto()) @map("_id") @db.ObjectId
+
+//   // Instructor Skill reference (যে skill hire করা হয়েছে)
+//   skillId String @db.ObjectId
+//   skill   InstructorSkill @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+//   // Instructor info
+//   instructorId String @db.ObjectId
+//   instructor   User @relation("InstructorOrders", fields: [instructorId], references: [id], onDelete: Cascade)
+
+//   // Student / buyer info
+//   studentId String @db.ObjectId
+//   student   User @relation("StudentOrders", fields: [studentId], references: [id], onDelete: Cascade)
+
+//   // Price & fees
+//   hourlyRateCents Int
+//   hours          Int
+//   subTotal       Int       // hourlyRate * hours
+//   taskerFee      Int?      // additional fee for instructor if needed
+//   adminFee       Int?      // 3% admin fee
+//   totalPrice     Int?      // subTotal + taskerFee + adminFee
+
+//   // Payment status
+//   paymentMethod PaymentMethod @default(CARD)
+//   paymentStatus PaymentStatus @default(PENDING)
+//   taskerReceiveStatus PaymentStatus @default(PENDING)
+
+//   // Actual amounts
+//   userPayAmount        Int? // student pays
+//   taskerReceivedAmount Int? // instructor receives
+//   adminEarnings        Int? // admin earnings
+
+//   // Order status
+//   status OrderStatus @default(PENDING)
+
+//   // Timestamps
+//   createdAt DateTime @default(now())
+//   updatedAt DateTime @updatedAt
+
+//   payments Payment[] @relation("OrderPayments")
+
+//   @@map("orders")
+// }
+
+// enum OrderStatus {
+//   PENDING
+//   CONFIRMED
+//   COMPLETED
+//   CANCELLED
+// }
+
 model Payment {
   id     String @id @default(auto()) @map("_id") @db.ObjectId
   userId String @db.ObjectId

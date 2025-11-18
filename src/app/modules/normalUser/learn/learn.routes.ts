@@ -13,6 +13,12 @@ router.get(
 );
 
 router.get("/search/instructors", auth(),learnController.searchInstructorsController);
+router.get(
+  "/by-skill/:skillId",
+  auth(),
+  learnController.getInstructorBySkillId
+);
 router.get("/instructor/:userId", auth(), learnController.getInstructorByUserIdController);
+
 
 export const learnRoutes = router;

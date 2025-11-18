@@ -40,6 +40,23 @@ const searchInstructorsController = catchAsync(
   }
 );
 
+const getInstructorBySkillId = catchAsync(async (req, res) => {
+  const currentUserId = req.user.id; // token থেকে
+  const { skillId } = req.params;
+
+  const result = await learnService.getInstructorBySkillIdService(
+    currentUserId,
+    skillId
+  );
+
+  sendResponse(res, {
+    success: true,
+    statusCode: httpStatus.OK,
+    message: "Instructor details fetched successfully",
+    data: result,
+  });
+});
+
 const getInstructorByUserIdController = catchAsync(
   async (req: Request, res: Response) => {
     const currentUserId = req.user.id;
@@ -59,5 +76,6 @@ const getInstructorByUserIdController = catchAsync(
 export const learnController = {
   getAllInstructorsController,
     searchInstructorsController,
+    getInstructorBySkillId,
     getInstructorByUserIdController,
 };
