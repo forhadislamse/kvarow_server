@@ -13,8 +13,8 @@ router.post(
 );
 
 
-// router.get("/get-all-payments", auth(), paymentController.getAllPayments);
+router.get("/get-all-payments", auth(), paymentController.getAllPayments);
 
-// router.get("/get-my-payments", auth(), paymentController.getMyPayments);
+router.get("/get-my-payments", auth(), paymentController.getMyPayments);
 
 export const paymentRoutes = router;

@@ -26,6 +26,43 @@ const createPayment = catchAsync(async (req: Request, res: Response) => {
     data: result,
   });
 });
+
+
+const getAllPayments = catchAsync(async (req: Request, res: Response) => {
+  const user = req.user; // JWT middleware থেকে আসে
+
+  const result = await paymentService.getAllPayments({
+    id: user.id,
+    role: user.role,
+  });
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Payments retrieved successfully",
+    data: result,
+  });
+});
+
+
+const getMyPayments = catchAsync(async (req: Request, res: Response) => {
+  const userId = req.user?.id; // token থেকে আসা user id
+
+  if (!userId) {
+    throw new ApiError(httpStatus.UNAUTHORIZED, "Unauthorized access");
+  }
+
+  const result = await paymentService.getMyPayments(userId);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Your payments retrieved successfully",
+    data: result,
+  });
+});
 export const paymentController = {
   createPayment,
+    getAllPayments, 
+    getMyPayments
 };

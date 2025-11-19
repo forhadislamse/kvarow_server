@@ -62,7 +62,31 @@ const createOrderPayment = async ({
   };
 };
 
+const getAllPayments = async (user: { id: string; role: string }) => {
+  // ✅ Role check inside service
+  if (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") {
+    throw new ApiError(httpStatus.FORBIDDEN, "Only admin can access payments");
+  }
+
+  // ✅ DB fetch
+  const payments = await prisma.payment.findMany({
+    include: { user: true },
+    orderBy: { createdAt: "desc" },
+  });
+
+  return payments;
+};
+
+const getMyPayments = async (userId: string) => {
+  return prisma.payment.findMany({
+    where: { userId },
+    orderBy: { createdAt: "desc" },
+  });
+};
+
 export const paymentService = {
   createOrderPayment,
+    getAllPayments,
+    getMyPayments
 };
 
