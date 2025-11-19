@@ -169,6 +169,7 @@ const getInstructorBySkillIdService = async (currentUserId: string, skillId: str
 
   // 4️⃣ Skills array (main object list)
   const skills = skillsData.map((s) => ({
+    id: s.id,
     skillName: s.skillName,
     teachingLevel: s.teachingLevel,
     hourlyRateCents: s.hourlyRateCents,

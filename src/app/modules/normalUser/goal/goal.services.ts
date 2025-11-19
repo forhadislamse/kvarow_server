@@ -4,7 +4,7 @@ import httpStatus from "http-status";
 import ApiError from "../../../../errors/ApiError";
 import prisma from "../../../../shared/prisma";
 
-const createGoal = async (userId: string, payload: any) => {
+/* const createGoal = async (userId: string, payload: any) => {
   if (!payload.title) throw new ApiError(httpStatus.BAD_REQUEST, "Title is required");
 
   // Collect all goalX fields dynamically
@@ -14,6 +14,36 @@ const createGoal = async (userId: string, payload: any) => {
       specificGoals.push(payload[key]);
     }
   });
+
+  return prisma.goal.create({
+    data: {
+      userId,
+      title: payload.title,
+      targetMonth: payload.targetMonth ? new Date(payload.targetMonth) : null,
+      practiceDurationMinutes: payload.practiceDurationMinutes ?? null,
+      specificGoals,
+    },
+  });
+}; */
+
+const createGoal = async (userId: string, payload: any) => {
+  if (!payload.title) {
+    throw new ApiError(httpStatus.BAD_REQUEST, "Title is required");
+  }
+
+  let specificGoals: string[] = [];
+
+  // If array comes from frontend (recommended)
+  if (Array.isArray(payload.specificGoals)) {
+    specificGoals = payload.specificGoals;
+  } else {
+    // If goal1, goal2 ... style comes
+    Object.keys(payload).forEach((key) => {
+      if (key.toLowerCase().startsWith("goal") && payload[key]) {
+        specificGoals.push(payload[key]);
+      }
+    });
+  }
 
   return prisma.goal.create({
     data: {
