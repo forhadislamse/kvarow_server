@@ -1,9 +1,6 @@
-
 import httpStatus from "http-status";
 import ApiError from "../../../../errors/ApiError";
 import prisma from "../../../../shared/prisma";
-
-
 
 const createInstructorSkill = async (userId: string, payload: any) => {
   if (!payload.skillName) {
@@ -45,8 +42,6 @@ const createInstructorSkill = async (userId: string, payload: any) => {
 
   return profile;
 };
-
-
 
 /* const getMyInstructorSkills = async (userId: string) => {
   // ইউজারের সব InstructorSkill খুঁজে নাও
@@ -119,7 +114,6 @@ const createInstructorSkill = async (userId: string, payload: any) => {
   return response;
 }; */
 
-
 const getMyInstructorSkills = async (userId: string) => {
   // 1️⃣ Instructor-এর সব Skills
   const skills = await prisma.instructorSkill.findMany({
@@ -166,7 +160,8 @@ const getMyInstructorSkills = async (userId: string) => {
   const earnings = await prisma.order.aggregate({
     where: {
       instructorId: userId,
-      status: "COMPLETED",
+      paymentStatus: "COMPLETED", // <-- Correct field
+      teacherReceiveStatus: "PENDING", // optional: যদি টাকা এখনো না দেওয়া হয়
       teacherReceivedAmount: { not: null },
     },
     _sum: {
@@ -175,7 +170,6 @@ const getMyInstructorSkills = async (userId: string) => {
   });
 
   const totalEarnings = earnings._sum.teacherReceivedAmount || 0;
-
 
   // 5️⃣ Final response
   const response = {
@@ -212,7 +206,8 @@ const getInstructorSkillById = async (id: string) => {
     where: { id },
   });
 
-  if (!profile) throw new ApiError(httpStatus.NOT_FOUND, "Instructor profile not found");
+  if (!profile)
+    throw new ApiError(httpStatus.NOT_FOUND, "Instructor profile not found");
 
   return {
     ...profile,
@@ -224,7 +219,8 @@ const getInstructorSkillById = async (id: string) => {
 // Update Instructor Skill
 const updateInstructorSkill = async (id: string, payload: any) => {
   const profile = await prisma.instructorSkill.findUnique({ where: { id } });
-  if (!profile) throw new ApiError(httpStatus.NOT_FOUND, "Instructor profile not found");
+  if (!profile)
+    throw new ApiError(httpStatus.NOT_FOUND, "Instructor profile not found");
 
   const updated = await prisma.instructorSkill.update({
     where: { id },
@@ -235,7 +231,8 @@ const updateInstructorSkill = async (id: string, payload: any) => {
       hourlyRateCents: payload.hourlyRateCents ?? profile.hourlyRateCents,
       teachingMode: payload.teachingMode || profile.teachingMode,
       availableDays: payload.availableDays || profile.availableDays,
-      availabilitySchedule: payload.availabilitySchedule || profile.availabilitySchedule,
+      availabilitySchedule:
+        payload.availabilitySchedule || profile.availabilitySchedule,
     },
   });
 
@@ -248,7 +245,8 @@ const updateInstructorSkill = async (id: string, payload: any) => {
 // Delete Instructor Skill
 const deleteInstructorSkill = async (id: string) => {
   const profile = await prisma.instructorSkill.findUnique({ where: { id } });
-  if (!profile) throw new ApiError(httpStatus.NOT_FOUND, "Instructor profile not found");
+  if (!profile)
+    throw new ApiError(httpStatus.NOT_FOUND, "Instructor profile not found");
 
   await prisma.instructorSkill.delete({ where: { id } });
   return profile;

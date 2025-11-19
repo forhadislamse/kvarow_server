@@ -3,6 +3,7 @@ import httpStatus from "http-status";
 import { skillService } from "./skill.services";
 import catchAsync from "../../../../shared/catchAsync";
 import sendResponse from "../../../../shared/sendResponse";
+import ApiError from "../../../../errors/ApiError";
 
 
 const createSkill = catchAsync(async (req: Request, res: Response) => {
@@ -43,16 +44,41 @@ const getSkillById = catchAsync(async (req: Request, res: Response) => {
     data: result,
   });
 });
-const updateSkill = catchAsync(async (req: Request, res: Response) => {
-  const userRole = req.user.role;
+// const updateSkill = catchAsync(async (req: Request, res: Response) => {
+//   const userRole = req.user.role;
 
-  const result = await skillService.updateSkill(req.params.id, req.body, userRole);
+//   const result = await skillService.updateSkill(req.params.id, req.body, userRole);
+
+//   sendResponse(res, {
+//     statusCode: httpStatus.OK,
+//     success: true,
+//     message: "Skill updated successfully",
+//     data: result,
+//   });
+// });
+
+const updateSkill = catchAsync(async (req: Request, res: Response) => {
+  const skillId = req.params.id;
+  const userRole = req.user.role;
+  const file = req.file;
+
+  // safe JSON parse
+  let updateData: { name?: string; subCategoryId?: string } = {};
+  if (req.body.data) {
+    try {
+      updateData = JSON.parse(req.body.data);
+    } catch (err) {
+      throw new ApiError(httpStatus.BAD_REQUEST, "Invalid JSON in 'data' field");
+    }
+  }
+
+  const updatedSkill = await skillService.updateSkill(skillId, updateData, userRole, file);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
     message: "Skill updated successfully",
-    data: result,
+    data: updatedSkill,
   });
 });
 

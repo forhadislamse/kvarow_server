@@ -191,7 +191,7 @@ const getInstructorBySkillIdService = async (currentUserId: string, skillId: str
   };
 };
 
-const sendOrderOffer = async ({
+/* const sendOrderOffer = async ({
   data,
   studentId,
 }: {
@@ -265,6 +265,86 @@ const sendOrderOffer = async ({
     },
   });
 
+
+  return result;
+}; */
+
+const sendOrderOffer = async ({
+  data,
+  studentId,
+}: {
+  data: any;
+  studentId: string;
+}) => {
+  const student = await prisma.user.findUnique({
+    where: { id: studentId },
+  });
+  if (!student) throw new ApiError(httpStatus.NOT_FOUND, "Student not found");
+
+  const { instructorId, skillId, price, hours } = data;
+
+  if (!instructorId || !skillId || !price || !hours) {
+    throw new ApiError(
+      httpStatus.BAD_REQUEST,
+      "instructorId, skillId, price and hours are required"
+    );
+  }
+
+  const instructor = await prisma.user.findUnique({
+    where: { id: instructorId },
+  });
+  if (!instructor)
+    throw new ApiError(httpStatus.NOT_FOUND, "Instructor not found");
+
+  const skill = await prisma.instructorSkill.findUnique({
+    where: { id: skillId },
+  });
+  if (!skill)
+    throw new ApiError(httpStatus.NOT_FOUND, "Instructor skill not found");
+
+  // Generate unique orderId
+  let orderId = getTransactionId();
+  while (await prisma.order.findUnique({ where: { orderId } })) {
+    orderId = getTransactionId();
+  }
+
+  // Total price = per-hour price * hours
+  const totalPrice = price * hours;
+
+  // 🟢 3% Admin fee
+  const adminFeePercent = 3;
+  const adminEarnings = (totalPrice * adminFeePercent) / 100;
+
+  // 🟢 Instructor receives
+  const teacherReceivedAmount = totalPrice - adminEarnings;
+
+  // 🟢 Student pays full total price
+  const userPayAmount = totalPrice;
+
+  // Create order
+  const result = await prisma.order.create({
+    data: {
+      orderId,
+      price,   // still storing per-hour rate
+      hours,   // number of hours
+      skillId,
+      instructorId,
+      studentId,
+
+      adminEarnings,
+      teacherReceivedAmount,
+      userPayAmount,
+
+      status: "PENDING",
+      paymentStatus: "PENDING",
+      teacherReceiveStatus: "PENDING",
+    },
+    include: {
+      instructor: true,
+      student: true,
+      skill: true,
+    },
+  });
 
   return result;
 };

@@ -49,8 +49,7 @@ model User {
   updatedAt DateTime @updatedAt
 
   Notification     Notification[]
- paymentsSend     Payment[]   @relation("PaymentSender")
-  paymentsReceived Payment[]   @relation("PaymentReceiver")
+  payments         Payment[]      @relation("UserPayments")
   goals            Goal[]         @relation("UserGoal")
   sentReviews      Review[]       @relation("SenderReviews") // user → reviews he sent
   receivedReviews  Review[]       @relation("ReceiverReviews") // user → reviews he received
@@ -92,6 +91,7 @@ model SubCategory {
 model Skill {
   id            String       @id @default(auto()) @map("_id") @db.ObjectId
   name          String
+  image         String?      @default("")
   subCategoryId String       @db.ObjectId
   subCategory   SubCategory  @relation(fields: [subCategoryId], references: [id], onDelete: Cascade)
   levels        SkillLevel[]
@@ -150,7 +150,7 @@ model InstructorSkill {
   // Profile fields
   teachingLevel     SkillLevel   @default(BEGINNER)
   educationTraining String?
-  hourlyRateCents   Int
+  hourlyRateCents   Float?
   teachingMode      TeachingMode @default(ONLINE)
 
   availableDays        String[] // array of strings
@@ -192,22 +192,71 @@ model Goal {
   updatedAt DateTime @updatedAt
 }
 
+// model Order {
+//   id String @id @default(auto()) @map("_id") @db.ObjectId
+
+//   price Float? // subTotal + taskerFee + adminFee
+//   orderId    String          @unique // Unique identifier for the order
+//   // Instructor Skill reference (যে skill hire করা হয়েছে)
+//   skillId    String          @db.ObjectId
+//   skill      InstructorSkill @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+//   // Instructor info
+//   instructorId String @db.ObjectId
+//   instructor   User   @relation("InstructorOrders", fields: [instructorId], references: [id], onDelete: Cascade)
+
+//   // Student / buyer info
+//   studentId String @db.ObjectId
+//   student   User   @relation("StudentOrders", fields: [studentId], references: [id], onDelete: Cascade)
+
+//   // Payment status
+//   paymentMethod PaymentType   @default(CARD)
+//   paymentStatus PaymentStatus @default(PENDING)
+
+//   // Actual amounts
+//   teacherReceiveStatus  PaymentStatus @default(PENDING)
+//   userPayAmount         Int? // student pays
+//   teacherReceivedAmount Int? // instructor receives
+//   adminEarnings         Int? // admin earnings
+
+//   //   // ─── Pricing calculations
+//   // // e.g. instructor hourlyRateCents = 15 ($15 → 1500 cents)
+//   // subTotalCents        Int? // base price for selected hours
+//   // adminFeePercent      Float? // default 3.0
+//   // adminFeeCents        Int?
+//   // teacherFeePercent    Float? // default 0 if not needed, or 0–? future
+//   // teacherFeeCents      Int?
+
+//   // Order status
+//   status OrderStatus @default(PENDING)
+
+//   // Timestamps
+//   createdAt DateTime @default(now())
+//   updatedAt DateTime @updatedAt
+
+//   payments Payment[] @relation("OrderPayments")
+
+//   @@map("orders")
+// }
+
 model Order {
   id String @id @default(auto()) @map("_id") @db.ObjectId
 
-  price Float? // subTotal + taskerFee + adminFee
-  orderId    String          @unique // Unique identifier for the order
+  price Float? // per-hour rate, user input
+  hours Int    // কত ঘন্টা hire করা হয়েছে
+  orderId String @unique // Unique identifier for the order
+
   // Instructor Skill reference (যে skill hire করা হয়েছে)
-  skillId    String          @db.ObjectId
-  skill      InstructorSkill @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  skillId String @db.ObjectId
+  skill   InstructorSkill @relation(fields: [skillId], references: [id], onDelete: Cascade)
 
   // Instructor info
   instructorId String @db.ObjectId
-  instructor   User   @relation("InstructorOrders", fields: [instructorId], references: [id], onDelete: Cascade)
+  instructor   User @relation("InstructorOrders", fields: [instructorId], references: [id], onDelete: Cascade)
 
   // Student / buyer info
   studentId String @db.ObjectId
-  student   User   @relation("StudentOrders", fields: [studentId], references: [id], onDelete: Cascade)
+  student   User @relation("StudentOrders", fields: [studentId], references: [id], onDelete: Cascade)
 
   // Payment status
   paymentMethod PaymentType   @default(CARD)
@@ -215,17 +264,9 @@ model Order {
 
   // Actual amounts
   teacherReceiveStatus  PaymentStatus @default(PENDING)
-  userPayAmount         Int? // student pays
-  teacherReceivedAmount Int? // instructor receives
-  adminEarnings         Int? // admin earnings
-
-  //   // ─── Pricing calculations
-  // // e.g. instructor hourlyRateCents = 15 ($15 → 1500 cents)
-  // subTotalCents        Int? // base price for selected hours
-  // adminFeePercent      Float? // default 3.0
-  // adminFeeCents        Int?
-  // teacherFeePercent    Float? // default 0 if not needed, or 0–? future
-  // teacherFeeCents      Int?
+  userPayAmount         Float? // student pays
+  teacherReceivedAmount Float? // instructor receives
+  adminEarnings         Float? // admin earnings
 
   // Order status
   status OrderStatus @default(PENDING)
@@ -239,6 +280,7 @@ model Order {
   @@map("orders")
 }
 
+
 enum OrderStatus {
   PENDING
   CONFIRMED
@@ -246,61 +288,72 @@ enum OrderStatus {
   CANCELLED
 }
 
+
+//knastachia
 // model Payment {
-//   id     String @id @default(auto()) @map("_id") @db.ObjectId
-//   userId String @db.ObjectId
-//   user   User   @relation("UserPayments", fields: [userId], references: [id], onDelete: Cascade)
+//   id        String   @id @default(auto()) @map("_id") @db.ObjectId
+//   paymentId String   // Stripe paymentIntent ID or custom ID
 
-//   amount         Float?        @default(0)
-//   paymentType    PaymentType?  @default(CARD) // CASH, CARD
-//   paymentMethod  String?       @default("") // CARD, WALLET, STRIPE
-//   paymentGateway String?       @default("") // Stripe, PayPal, etc.
-//   currency       String?       @default("USD")
-//   // method   PaymentMethod @default(STRIPE)
-//   status         PaymentStatus @default(PENDING)
+//   // Relation with Order
+//   orderId String? @db.ObjectId
+//   order   Order?  @relation("OrderPayments", fields: [orderId], references: [id], onDelete: Cascade)
 
-//   transactionId String? // Stripe/Wallet transaction reference
-//   paymentIntent String? // Stripe intent id or equivalent
+//   // Who paid (student)
+//   senderId String? @db.ObjectId
+//   sender   User?   @relation("PaymentSender", fields: [senderId], references: [id], onDelete: Cascade)
 
-//   createdAt DateTime @default(now())
-//   updatedAt DateTime @updatedAt
-//   order     Order?   @relation(fields: [orderId], references: [id])
-//   orderId   String?  @db.ObjectId
+//   // Who receives (instructor)
+//   receiverId String? @db.ObjectId
+//   receiver   User?   @relation("PaymentReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+
+//   amount         Float            // base amount
+//   platformFee    Float?           // admin fee (3% etc)
+//   instructorGets Float?           // instructor receives final amount
+//   transactionId  String? @unique  // stripe or custom
+
+//   paymentMethod PaymentType @default(CARD)
+//   paymentStatus PaymentStatus @default(PENDING)
+
+//   stripePaymentIntentId       String?
+//   stripePlatformFeeTransferId String?
+//   stripeInstructorTransferId  String?
+//   refundId                    String?
+
+//   metadata Json?
+//   isHold   Boolean   @default(false)
+//   holdReleaseDate DateTime?
+
+//   paymentDate DateTime? @default(now())
+//   createdAt   DateTime  @default(now())
+//   updatedAt   DateTime  @updatedAt
 
 //   @@map("payments")
 // }
 
-model Payment {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  paymentId String   // Stripe paymentIntent ID or custom ID
+//amazing care
+/* model Payment {
+  id     String @id @default(auto()) @map("_id") @db.ObjectId
 
-  // Relation with Order
-  orderId String? @db.ObjectId
-  order   Order?  @relation("OrderPayments", fields: [orderId], references: [id], onDelete: Cascade)
+  userId String @db.ObjectId
+  user   User   @relation("UserPayments", fields: [userId], references: [id], onDelete: Cascade)
 
-  // Who paid (student)
-  senderId String? @db.ObjectId
-  sender   User?   @relation("PaymentSender", fields: [senderId], references: [id], onDelete: Cascade)
+  amount         Float?        @default(0)  // Payment amount
+  paymentMethod  String?       @default("") // CARD, WALLET, STRIPE
+  paymentGateway String?       @default("") // Stripe, PayPal, etc.
+  currency       String?       @default("USD")
+  status         PaymentStatus @default(PENDING)
 
-  // Who receives (instructor)
-  receiverId String? @db.ObjectId
-  receiver   User?   @relation("PaymentReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  // Relation to Order
+  orderId String @db.ObjectId
+  order   Order  @relation("OrderPayments", fields: [orderId], references: [id], onDelete: Cascade)
 
-  amount         Float            // base amount
-  platformFee    Float?           // admin fee (3% etc)
-  instructorGets Float?           // instructor receives final amount
-  transactionId  String? @unique  // stripe or custom
+  transactionId String? // Stripe/Wallet transaction reference
+  paymentIntent String? // Stripe intent id or equivalent
+  refundId      String? // If refunded
 
-  paymentMethod PaymentType @default(CARD)
-  paymentStatus PaymentStatus @default(PENDING)
+  metadata Json? // Any extra info about payment
 
-  stripePaymentIntentId       String?
-  stripePlatformFeeTransferId String?
-  stripeInstructorTransferId  String?
-  refundId                    String?
-
-  metadata Json?
-  isHold   Boolean   @default(false)
+  isHold          Boolean   @default(false)
   holdReleaseDate DateTime?
 
   paymentDate DateTime? @default(now())
@@ -308,7 +361,31 @@ model Payment {
   updatedAt   DateTime  @updatedAt
 
   @@map("payments")
+} */
+
+model Payment {
+  id         String        @id @default(auto()) @map("_id") @db.ObjectId
+
+  orderId    String        @db.ObjectId
+  order      Order         @relation("OrderPayments",fields: [orderId], references: [id], onDelete: Cascade)
+
+  userId     String        @db.ObjectId
+  user       User          @relation("UserPayments", fields: [userId], references: [id], onDelete: Cascade)
+
+  amount         Float       // comes from order.userPayAmount
+  paymentMethod  String      @default("CARD")
+  paymentGateway String?     @default("STRIPE")
+  currency       String?     @default("USD")
+  status         PaymentStatus @default(PENDING)
+
+  transactionId  String? @unique
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("payments")
 }
+
 
 
 enum PaymentType {

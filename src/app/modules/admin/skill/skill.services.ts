@@ -2,6 +2,8 @@
 import httpStatus from "http-status";
 import ApiError from "../../../../errors/ApiError";
 import prisma from "../../../../shared/prisma";
+import { fileUploader } from "../../../../helpars/fileUploader";
+import { deleteImageAndFile } from "../../../../helpars/fileDelete";
 // import { SkillLevelEnum } from "@prisma/client";
 
 // ✅ Validation
@@ -98,10 +100,34 @@ const getSkillById = async (id: string) => {
 };
 
 // ✅ Update Skill
+// const updateSkill = async (
+//   id: string,
+//   payload: { name?: string; subCategoryId?: string },
+//   userRole: string
+// ) => {
+//   if (userRole !== "ADMIN") {
+//     throw new ApiError(httpStatus.FORBIDDEN, "Only admin can update skill");
+//   }
+
+//   const skill = await prisma.skill.findUnique({ where: { id } });
+//   if (!skill) throw new ApiError(httpStatus.NOT_FOUND, "Skill not found");
+
+//   // Validate name uniqueness (if changed)
+//   if (payload.name && payload.name !== skill.name) {
+//     await validateSkill(payload.name, skill.subCategoryId);
+//   }
+
+//   return await prisma.skill.update({
+//     where: { id },
+//     data: payload,
+//   });
+// };
+
 const updateSkill = async (
   id: string,
-  payload: { name?: string; subCategoryId?: string },
-  userRole: string
+  payload: { name?: string; subCategoryId?: string; image?: string },
+  userRole: string,
+  file?: Express.Multer.File
 ) => {
   if (userRole !== "ADMIN") {
     throw new ApiError(httpStatus.FORBIDDEN, "Only admin can update skill");
@@ -112,14 +138,32 @@ const updateSkill = async (
 
   // Validate name uniqueness (if changed)
   if (payload.name && payload.name !== skill.name) {
-    await validateSkill(payload.name, skill.subCategoryId);
+    await validateSkill(payload.name, payload.subCategoryId || skill.subCategoryId);
   }
 
-  return await prisma.skill.update({
+  // Handle image upload
+  if (file) {
+    const uploadedImageUrl = await fileUploader.uploadToDigitalOcean(file);
+    payload["image"] = uploadedImageUrl.Location;
+
+    // Delete old image if exists
+    if (skill.image) {
+      await deleteImageAndFile.deleteFileFromDigitalOcean(skill.image);
+    }
+  }
+
+  // Update only provided fields
+  const updatedSkill = await prisma.skill.update({
     where: { id },
-    data: payload,
+    data: {
+      ...payload,
+      updatedAt: new Date(),
+    },
   });
+
+  return updatedSkill;
 };
+
 
 const deleteSkill = async (id: string, userRole: string) => {
   if (userRole !== "ADMIN") {
