@@ -47,71 +47,8 @@ const createInstructorSkill = async (userId: string, payload: any) => {
 };
 
 
-/* const createInstructorSkill = async (userId: string, payload: any) => {
-  // Check if user already has an InstructorSkill profile
-  const exist = await prisma.instructorSkill.findFirst({
-    where: { userId },
-  });
 
-  if (exist) {
-    // User already has profile → cannot create again
-    throw new ApiError(
-      httpStatus.CONFLICT,
-      "Instructor profile already exists. Please update it instead."
-    );
-  }
-
-  // Create new InstructorSkill profile
-  const profile = await prisma.instructorSkill.create({
-    data: {
-      userId,
-      skillName: payload.skillName,
-      teachingLevel: payload.teachingLevel,
-      educationTraining: payload.educationTraining,
-      hourlyRateCents: payload.hourlyRateCents,
-      teachingMode: payload.teachingMode,
-      availableDays: payload.availableDays || [],
-      availabilitySchedule: payload.availabilitySchedule || undefined,
-    },
-  });
-
-  return profile;
-}; */
-
-
-// const getMyInstructorSkills = async (userId: string) => {
-//   const profiles = await prisma.instructorSkill.findMany({
-//     where: { userId },
-//     include: { user: true }, // Include user info
-//     orderBy: { hourlyRateCents: "desc" },
-//   });
-
-//   return profiles.map((p) => ({
-//     id: p.id,
-//     userId: p.userId,
-//     skillName: p.skillName,
-//     teachingLevel: p.teachingLevel,
-//     educationTraining: p.educationTraining,
-//     hourlyRateCents: p.hourlyRateCents,
-//     teachingMode: p.teachingMode,
-//     availableDays: p.availableDays,
-//     availabilitySchedule: p.availabilitySchedule, // Already JSON object
-    
-//     user: {
-//       id: p.user.id,
-//       fullName: p.user.fullName,
-//       email: p.user.email,
-//       profileImage: p.user.profileImage,
-//       about: p.user.about,
-//     },
-//     createdAt: p.createdAt,
-//     updatedAt: p.updatedAt,
-//   }));
-// };
-
-// Get Instructor Skill by ID
-
-const getMyInstructorSkills = async (userId: string) => {
+/* const getMyInstructorSkills = async (userId: string) => {
   // ইউজারের সব InstructorSkill খুঁজে নাও
   const skills = await prisma.instructorSkill.findMany({
     where: { userId },
@@ -177,6 +114,94 @@ const getMyInstructorSkills = async (userId: string) => {
 
     totalReviews,
     avgRating: Number(avgRating.toFixed(2)),
+  };
+
+  return response;
+}; */
+
+
+const getMyInstructorSkills = async (userId: string) => {
+  // 1️⃣ Instructor-এর সব Skills
+  const skills = await prisma.instructorSkill.findMany({
+    where: { userId },
+    orderBy: { hourlyRateCents: "desc" },
+  });
+
+  // 2️⃣ User info
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      fullName: true,
+      email: true,
+      profileImage: true,
+      about: true,
+    },
+  });
+
+  if (!user) throw new ApiError(httpStatus.NOT_FOUND, "User not found");
+
+  // 3️⃣ Reviews
+  const reviews = await prisma.review.findMany({
+    where: { receiverId: userId },
+    include: {
+      sender: {
+        select: {
+          id: true,
+          fullName: true,
+          profileImage: true,
+        },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const totalReviews = reviews.length;
+  const avgRating =
+    totalReviews > 0
+      ? reviews.reduce((sum, r) => sum + r.rating, 0) / totalReviews
+      : 0;
+
+  // 4️⃣ Instructor total earnings (Order table থেকে)
+  const earnings = await prisma.order.aggregate({
+    where: {
+      instructorId: userId,
+      status: "COMPLETED",
+      teacherReceivedAmount: { not: null },
+    },
+    _sum: {
+      teacherReceivedAmount: true,
+    },
+  });
+
+  const totalEarnings = earnings._sum.teacherReceivedAmount || 0;
+
+
+  // 5️⃣ Final response
+  const response = {
+    ...user,
+    skillName: skills.map((s) => s.skillName),
+    teachingLevel: skills.map((s) => s.teachingLevel),
+    educationTraining: skills.map((s) => s.educationTraining),
+    hourlyRateCents: skills.map((s) => s.hourlyRateCents),
+    teachingMode: skills.map((s) => s.teachingMode),
+    availableDays: skills.map((s) => s.availableDays),
+    availabilitySchedule: skills.map((s) => s.availabilitySchedule),
+
+    // review section
+    reviews: reviews.map((r) => ({
+      id: r.id,
+      rating: r.rating,
+      comment: r.comment,
+      createdAt: r.createdAt,
+      sender: r.sender,
+    })),
+
+    totalReviews,
+    avgRating: Number(avgRating.toFixed(2)),
+
+    // 🟢 NEW FIELD
+    totalEarnings: Number(totalEarnings.toFixed(2)),
   };
 
   return response;
