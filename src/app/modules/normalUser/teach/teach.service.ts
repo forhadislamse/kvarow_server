@@ -43,78 +43,9 @@ const createInstructorSkill = async (userId: string, payload: any) => {
   return profile;
 };
 
+
+
 /* const getMyInstructorSkills = async (userId: string) => {
-  // ইউজারের সব InstructorSkill খুঁজে নাও
-  const skills = await prisma.instructorSkill.findMany({
-    where: { userId },
-    orderBy: { hourlyRateCents: "desc" },
-  });
-
-  // ইউজার info একবার fetch কর
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: {
-      id: true,
-      fullName: true,
-      email: true,
-      profileImage: true,
-      about: true,
-    },
-  });
-
-  if (!user) throw new ApiError(httpStatus.NOT_FOUND, "User not found");
-
-   // 3️⃣ Reviews fetch কর
-  const reviews = await prisma.review.findMany({
-    where: { receiverId: userId },
-    include: {
-      sender: {
-        select: {
-          id: true,
-          fullName: true,
-          profileImage: true,
-        },
-      },
-    },
-    orderBy: { createdAt: "desc" },
-  });
-
-  const totalReviews = reviews.length;
-
-  const avgRating =
-    totalReviews > 0
-      ? reviews.reduce((sum, r) => sum + r.rating, 0) / totalReviews
-      : 0;
-
-
-  // সব skill field আলাদা array হিসেবে map কর
-  const response = {
-    ...user,
-    skillName: skills.map((s) => s.skillName),
-    teachingLevel: skills.map((s) => s.teachingLevel),
-    educationTraining: skills.map((s) => s.educationTraining),
-    hourlyRateCents: skills.map((s) => s.hourlyRateCents),
-    teachingMode: skills.map((s) => s.teachingMode),
-    availableDays: skills.map((s) => s.availableDays),
-    availabilitySchedule: skills.map((s) => s.availabilitySchedule),
-
-    // review section
-    reviews: reviews.map((r) => ({
-      id: r.id,
-      rating: r.rating,
-      comment: r.comment,
-      createdAt: r.createdAt,
-      sender: r.sender,
-    })),
-
-    totalReviews,
-    avgRating: Number(avgRating.toFixed(2)),
-  };
-
-  return response;
-}; */
-
-const getMyInstructorSkills = async (userId: string) => {
   // 1️⃣ Instructor-এর সব Skills
   const skills = await prisma.instructorSkill.findMany({
     where: { userId },
@@ -199,7 +130,76 @@ const getMyInstructorSkills = async (userId: string) => {
   };
 
   return response;
+}; */
+
+const getMyInstructorSkills = async (userId: string) => {
+  // 1️⃣ Instructor-এর সব Skills
+  const skills = await prisma.instructorSkill.findMany({
+    where: { userId },
+    orderBy: { hourlyRateCents: "desc" },
+  });
+
+  // 2️⃣ User info
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      fullName: true,
+      email: true,
+      profileImage: true,
+      about: true,
+    },
+  });
+
+  if (!user) throw new ApiError(httpStatus.NOT_FOUND, "User not found");
+
+  // 3️⃣ Reviews
+  const reviews = await prisma.review.findMany({
+    where: { receiverId: userId },
+    include: { sender: { select: { id: true, fullName: true, profileImage: true } } },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const totalReviews = reviews.length;
+  const avgRating =
+    totalReviews > 0
+      ? reviews.reduce((sum, r) => sum + r.rating, 0) / totalReviews
+      : 0;
+
+  // 4️⃣ Earnings
+  const earnings = await prisma.order.aggregate({
+    where: { instructorId: userId, paymentStatus: "COMPLETED", teacherReceivedAmount: { not: null } },
+    _sum: { teacherReceivedAmount: true },
+  });
+  const totalEarnings = earnings._sum.teacherReceivedAmount || 0;
+
+  // 5️⃣ Determine if first-time skill
+  const isFirstTimeSkill = skills.length === 0;
+
+  // 6️⃣ Response
+  return {
+    ...user,
+    skillName: skills.map((s) => s.skillName),
+    teachingLevel: skills.map((s) => s.teachingLevel),
+    educationTraining: skills.map((s) => s.educationTraining),
+    hourlyRateCents: skills.map((s) => s.hourlyRateCents),
+    teachingMode: skills.map((s) => s.teachingMode),
+    availableDays: skills.map((s) => s.availableDays),
+    availabilitySchedule: skills.map((s) => s.availabilitySchedule),
+    reviews: reviews.map((r) => ({
+      id: r.id,
+      rating: r.rating,
+      comment: r.comment,
+      createdAt: r.createdAt,
+      sender: r.sender,
+    })),
+    totalReviews,
+    avgRating: Number(avgRating.toFixed(2)),
+    totalEarnings: Number(totalEarnings.toFixed(2)),
+    isFirstTimeSkill, // ✅ এখানে auto update
+  };
 };
+
 
 const getInstructorSkillById = async (id: string) => {
   const profile = await prisma.instructorSkill.findUnique({

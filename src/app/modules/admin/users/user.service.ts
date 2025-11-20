@@ -189,7 +189,83 @@ const softDeleteUser = async (userIdToDelete: string, adminId: string) => {
   return updatedUser;
 };
 
+const getCategoryOverview = async (adminId: string) => {
+  // 1. Check admin
+  const admin = await prisma.user.findUnique({
+    where: { id: adminId },
+  });
+
+  if (!admin || admin.role !== "ADMIN") {
+    throw new ApiError(httpStatus.FORBIDDEN, "Only ADMIN can access this data");
+  }
+
+  // 2. Load categories + subCategories + skills
+  const categories = await prisma.category.findMany({
+    include: {
+      subCategories: {
+        include: {
+          skills: true,
+        },
+      },
+    },
+  });
+
+  // 3. Load all InstructorSkills (without relation)
+  const instructorSkills = await prisma.instructorSkill.findMany({
+    include: {
+      orders: {
+        include: {
+          payments: true,
+        },
+      },
+    },
+  });
+
+  const result = categories.map(category => {
+    const subCategoryCount = category.subCategories.length;
+
+    let skillCount = 0;
+    category.subCategories.forEach(sc => {
+      skillCount += sc.skills.length;
+    });
+
+    // Collect unique paid userIds
+    const paidUsers = new Set<string>();
+
+    category.subCategories.forEach(sc => {
+      sc.skills.forEach(skill => {
+
+        // Match instructorSkill by skillName (string)
+        const relatedInstructorSkills = instructorSkills.filter(
+          ins => ins.skillName.toLowerCase() === skill.name.toLowerCase()
+        );
+
+        relatedInstructorSkills.forEach(insSkill => {
+          insSkill.orders.forEach(order => {
+            order.payments.forEach(payment => {
+              if (payment.status === "COMPLETED") {
+                paidUsers.add(payment.userId);
+              }
+            });
+          });
+        });
+      });
+    });
+
+    return {
+      name: category.name,
+      subCategoryCount,
+      skillCount,
+      paidUsers: paidUsers.size,
+    };
+  });
+
+  return result;
+};
+
+
 export const adminUserService = {
   allUsers,
   softDeleteUser,
+  getCategoryOverview,
 };

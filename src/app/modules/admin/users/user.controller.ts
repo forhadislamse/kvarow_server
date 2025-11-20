@@ -31,7 +31,20 @@ const softDeleteUser = catchAsync(async (req: Request, res: Response) => {
     data: result,
   });
 });
+
+const getCategoryDashboard = catchAsync(async (req, res) => {
+  const result = await adminUserService.getCategoryOverview(req.user.id);
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Category overview retrieved",
+    data: result,
+  });
+});
 export const adminUserController = {
   allUsers,
     softDeleteUser,
+  getCategoryDashboard,
+
 };
