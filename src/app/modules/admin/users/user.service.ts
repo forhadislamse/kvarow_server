@@ -16,72 +16,6 @@ export interface IGetAllOptions {
   removed?: "true" | "false"; // Active / Removed users
 }
 
-// const allUsers = async (options: IGetAllOptions = {}, userId: string) => {
-//   const { skip, limit, sortBy, sortOrder, page } =
-//     paginationHelper.calculatePagination(options);
-
-//   const requestingUser = await prisma.user.findUnique({ where: { id: userId } });
-//   if (!requestingUser) {
-//     throw new ApiError(httpStatus.NOT_FOUND, "Requesting user not found!");
-//   }
-
-//   const isRemoved = options.removed === "true";
-
-//   const searchFilter: Prisma.UserWhereInput = {
-//     role: "USER",
-//     isDeleted: isRemoved,
-//     ...(options.search
-//       ? {
-//           OR: [
-//             { fullName: { contains: options.search, mode: "insensitive" } },
-//             { email: { contains: options.search, mode: "insensitive" } },
-//           ],
-//         }
-//       : {}),
-//   };
-
-//   const users = await prisma.user.findMany({
-//     where: searchFilter,
-//     skip,
-//     take: limit,
-//     orderBy: sortBy ? { [sortBy]: sortOrder } : { createdAt: "desc" },
-//     select: {
-//       id: true,
-//       fullName: true,
-//       email: true,
-//       profileImage: true,
-//       status: true,
-//       createdAt: true,
-//     },
-//   });
-
-//   if (!users.length) {
-//     throw new ApiError(httpStatus.NOT_FOUND, "Users not found!");
-//   }
-
-//   const [totalUsersCount, totalActiveUsers, totalRemovedUsers] = await Promise.all([
-//     prisma.user.count({ where: searchFilter }),
-//     prisma.user.count({ where: { role: "USER", isDeleted: false } }),
-//     prisma.user.count({ where: { role: "USER", isDeleted: true } }),
-//   ]);
-
-//   const usersWithSerial = users.map((user, index) => ({
-//     serial: skip + index + 1,
-//     ...user,
-//   }));
-
-//   return {
-//     meta: {
-//       page,
-//       limit,
-//       totalUsers: totalUsersCount,
-//       totalPages: Math.ceil(totalUsersCount / limit),
-//       totalActiveUsers,
-//       totalRemovedUsers,
-//     },
-//     data: usersWithSerial,
-//   };
-// };
 
 const allUsers = async (options: IGetAllOptions = {}, userId: string) => {
   const { skip, limit, sortBy, sortOrder, page } =
@@ -189,83 +123,320 @@ const softDeleteUser = async (userIdToDelete: string, adminId: string) => {
   return updatedUser;
 };
 
-const getCategoryOverview = async (adminId: string) => {
-  // 1. Check admin
-  const admin = await prisma.user.findUnique({
-    where: { id: adminId },
-  });
 
+/* const getCategoryOverview = async (adminId: string) => {
+  // 1. Check admin role
+  const admin = await prisma.user.findUnique({ where: { id: adminId } });
   if (!admin || admin.role !== "ADMIN") {
     throw new ApiError(httpStatus.FORBIDDEN, "Only ADMIN can access this data");
   }
 
-  // 2. Load categories + subCategories + skills
+  // 2. Fetch categories with subcategories and skills
   const categories = await prisma.category.findMany({
-    include: {
-      subCategories: {
-        include: {
-          skills: true,
-        },
-      },
-    },
+    include: { subCategories: { include: { skills: true } } },
   });
 
-  // 3. Load all InstructorSkills (without relation)
+  // 3. Fetch all instructorSkills + orders + payments
   const instructorSkills = await prisma.instructorSkill.findMany({
-    include: {
-      orders: {
-        include: {
-          payments: true,
-        },
-      },
-    },
+    include: { orders: { include: { payments: true } } },
   });
 
+  // 4. Build hierarchical paid order counts
   const result = categories.map(category => {
-    const subCategoryCount = category.subCategories.length;
+    let categoryPaidOrders = 0;
 
-    let skillCount = 0;
-    category.subCategories.forEach(sc => {
-      skillCount += sc.skills.length;
+    const subCategories = category.subCategories.map(sc => {
+      let subCategoryPaidOrders = 0;
+
+      const skills = sc.skills.map(skill => {
+        const relatedInstructorSkills = instructorSkills.filter(
+          ins => ins.skillName?.trim().toLowerCase() === skill.name.trim().toLowerCase()
+        );
+
+        let skillPaidOrders = 0;
+        relatedInstructorSkills.forEach(insSkill => {
+          insSkill.orders.forEach(order => {
+            order.payments.forEach(payment => {
+              if (payment.status === "COMPLETED") {
+                skillPaidOrders += 1;
+                subCategoryPaidOrders += 1;
+                categoryPaidOrders += 1;
+              }
+            });
+          });
+        });
+
+        return {
+          skillName: skill.name,
+          paidOrders: skillPaidOrders,
+        };
+      });
+
+      return {
+        subCategoryName: sc.name,
+        skillCount: sc.skills.length,
+        paidOrders: subCategoryPaidOrders,
+        skills,
+      };
     });
 
-    // Collect unique paid userIds
-    const paidUsers = new Set<string>();
+    return {
+      categoryName: category.name,
+      subCategoryCount: category.subCategories.length,
+      skillCount: category.subCategories.reduce((acc, sc) => acc + sc.skills.length, 0),
+      paidOrders: categoryPaidOrders,
+      subCategories,
+    };
+  });
+
+  return result;
+}; */
+
+
+export interface IOptions {
+  page?: number;
+  limit?: number;
+  sortBy?: string;
+  sortOrder?: "asc" | "desc";
+}
+
+interface Meta {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+interface PaginatedResult<T> {
+  meta: Meta;
+  data: T[];
+}
+
+const getCategoryOverview = async (
+  adminId: string,
+  options: IOptions = {}
+): Promise<{
+  topStats: {
+    topSkills: number;
+    totalCategories: number;
+    totalSubCategories: number;
+    totalSkills: number;
+  };
+  tables: {
+    categories: PaginatedResult<{ name: string; subCategories: number; skills: number; orders: number }>;
+  };
+}> => {
+  const { page, limit } = paginationHelper.calculatePagination(options);
+
+  // 1️⃣ Check admin
+  const admin = await prisma.user.findUnique({ where: { id: adminId } });
+  if (!admin || admin.role !== "ADMIN") {
+    throw new ApiError(httpStatus.FORBIDDEN, "Only ADMIN can access this data");
+  }
+
+  // 2️⃣ Fetch categories + subcategories + skills
+  const categories = await prisma.category.findMany({
+    include: { subCategories: { include: { skills: true } } },
+  });
+
+  const instructorSkills = await prisma.instructorSkill.findMany({
+    include: { orders: { include: { payments: true } } },
+  });
+
+  let totalSkillsCount = 0;
+  const allSkillsData: { name: string; orders: number }[] = [];
+
+  const categoriesData = categories.map(category => {
+    let categoryPaidOrders = 0;
 
     category.subCategories.forEach(sc => {
-      sc.skills.forEach(skill => {
+      let subCategoryPaidOrders = 0;
 
-        // Match instructorSkill by skillName (string)
+      sc.skills.forEach(skill => {
+        totalSkillsCount += 1;
+
         const relatedInstructorSkills = instructorSkills.filter(
-          ins => ins.skillName.toLowerCase() === skill.name.toLowerCase()
+          ins => ins.skillName?.trim().toLowerCase() === skill.name.trim().toLowerCase()
+        );
+
+        let skillPaidOrders = 0;
+        relatedInstructorSkills.forEach(insSkill => {
+          insSkill.orders.forEach(order => {
+            order.payments.forEach(payment => {
+              if (payment.status === "COMPLETED") {
+                skillPaidOrders += 1;
+                subCategoryPaidOrders += 1;
+                categoryPaidOrders += 1;
+              }
+            });
+          });
+        });
+
+        allSkillsData.push({ name: skill.name, orders: skillPaidOrders });
+      });
+    });
+
+    return {
+      name: category.name,
+      subCategories: category.subCategories.length,
+      skills: category.subCategories.reduce((acc, sc) => acc + sc.skills.length, 0),
+      orders: categoryPaidOrders,
+    };
+  });
+
+  // ------------------- TopSkills count update -------------------
+  const topSkillsCount = allSkillsData.filter(skill => skill.orders >= 1).length;
+
+  // ------------------- Helper to paginate categories -------------------
+  const paginateWithMeta = <T>(data: T[], page: number, limit: number): PaginatedResult<T> => {
+    const total = data.length;
+    const start = (page - 1) * limit;
+    const end = start + limit;
+    return {
+      meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
+      data: data.slice(start, end),
+    };
+  };
+
+  return {
+    topStats: {
+      topSkills: topSkillsCount,
+      totalCategories: categories.length,
+      totalSubCategories: categoriesData.reduce((acc, cat) => acc + cat.subCategories, 0),
+      totalSkills: totalSkillsCount,
+    },
+    tables: {
+      categories: paginateWithMeta(categoriesData, page, limit),
+    },
+  };
+};
+
+
+
+const getSubCategoriesTable = async (
+  adminId: string,
+  options: IOptions = {}
+): Promise<PaginatedResult<{ name: string; skills: number; orders: number }>> => {
+  const { page, limit } = paginationHelper.calculatePagination(options);
+
+  // check admin
+  const admin = await prisma.user.findUnique({ where: { id: adminId } });
+  if (!admin || admin.role !== "ADMIN") {
+    throw new ApiError(httpStatus.FORBIDDEN, "Only ADMIN can access this data");
+  }
+
+  // fetch categories + subcategories + skills
+  const categories = await prisma.category.findMany({
+    include: { subCategories: { include: { skills: true } } },
+  });
+
+  const instructorSkills = await prisma.instructorSkill.findMany({
+    include: { orders: { include: { payments: true } } },
+  });
+
+  // map subcategories
+  const allSubCategories = categories.flatMap(cat =>
+    cat.subCategories.map(sc => {
+      let subCategoryPaidOrders = 0;
+
+      sc.skills.forEach(skill => {
+        const relatedInstructorSkills = instructorSkills.filter(
+          ins => ins.skillName?.trim().toLowerCase() === skill.name.trim().toLowerCase()
         );
 
         relatedInstructorSkills.forEach(insSkill => {
           insSkill.orders.forEach(order => {
             order.payments.forEach(payment => {
               if (payment.status === "COMPLETED") {
-                paidUsers.add(payment.userId);
+                subCategoryPaidOrders += 1;
               }
             });
           });
         });
       });
-    });
 
-    return {
-      name: category.name,
-      subCategoryCount,
-      skillCount,
-      paidUsers: paidUsers.size,
-    };
-  });
+      return {
+        name: sc.name,
+        skills: sc.skills.length,
+        orders: subCategoryPaidOrders,
+      };
+    })
+  );
 
-  return result;
+  const total = allSubCategories.length;
+  return {
+    meta: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    },
+    data: allSubCategories.slice((page - 1) * limit, (page - 1) * limit + limit),
+  };
 };
 
+// ------------------ Skills Table ------------------
+const getSkillsTable = async (
+  adminId: string,
+  options: IOptions = {}
+): Promise<PaginatedResult<{ name: string; orders: number }>> => {
+  const { page, limit } = paginationHelper.calculatePagination(options);
+
+  // check admin
+  const admin = await prisma.user.findUnique({ where: { id: adminId } });
+  if (!admin || admin.role !== "ADMIN") {
+    throw new ApiError(httpStatus.FORBIDDEN, "Only ADMIN can access this data");
+  }
+
+  const categories = await prisma.category.findMany({
+    include: { subCategories: { include: { skills: true } } },
+  });
+
+  const instructorSkills = await prisma.instructorSkill.findMany({
+    include: { orders: { include: { payments: true } } },
+  });
+
+  const allSkills: { name: string; orders: number }[] = [];
+
+  categories.forEach(cat => {
+    cat.subCategories.forEach(sc => {
+      sc.skills.forEach(skill => {
+        let skillPaidOrders = 0;
+        const relatedInstructorSkills = instructorSkills.filter(
+          ins => ins.skillName?.trim().toLowerCase() === skill.name.trim().toLowerCase()
+        );
+
+        relatedInstructorSkills.forEach(insSkill => {
+          insSkill.orders.forEach(order => {
+            order.payments.forEach(payment => {
+              if (payment.status === "COMPLETED") {
+                skillPaidOrders += 1;
+              }
+            });
+          });
+        });
+
+        allSkills.push({ name: skill.name, orders: skillPaidOrders });
+      });
+    });
+  });
+
+  const total = allSkills.length;
+  return {
+    meta: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    },
+    data: allSkills.slice((page - 1) * limit, (page - 1) * limit + limit),
+  };
+};
 
 export const adminUserService = {
   allUsers,
   softDeleteUser,
   getCategoryOverview,
+  getSubCategoriesTable,
+  getSkillsTable,
 };

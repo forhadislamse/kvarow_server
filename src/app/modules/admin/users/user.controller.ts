@@ -32,19 +32,59 @@ const softDeleteUser = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-const getCategoryDashboard = catchAsync(async (req, res) => {
-  const result = await adminUserService.getCategoryOverview(req.user.id);
+const getCategoryDashboard = catchAsync(async (req: Request, res: Response) => {
+  const adminId = req.user.id;
+
+  const options= req.query;
+
+  const result = await adminUserService.getCategoryOverview(adminId, options);
+
+  // Only keep categories table
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Categories dashboard retrieved successfully",
+    data: {
+      topStats: result.topStats,
+      tables: { categories: result.tables.categories },
+    },
+  });
+});
+
+const subCategoriesTable = catchAsync(async (req: Request, res: Response) => {
+  const adminId = req.user.id;
+
+  const options = req.query;
+
+  const result = await adminUserService.getSubCategoriesTable(adminId, options);
 
   sendResponse(res, {
     statusCode: 200,
     success: true,
-    message: "Category overview retrieved",
+    message: "Sub-categories retrieved successfully",
     data: result,
   });
 });
+
+// Skills table API
+const skillsTable = catchAsync(async (req: Request, res: Response) => {
+  const adminId = req.user.id;
+
+  const options = req.query;
+  const result = await adminUserService.getSkillsTable(adminId, options);
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Skills retrieved successfully",
+    data: result,
+  });
+});
+
 export const adminUserController = {
   allUsers,
-    softDeleteUser,
+  softDeleteUser,
   getCategoryDashboard,
-
+  subCategoriesTable,
+  skillsTable,
 };

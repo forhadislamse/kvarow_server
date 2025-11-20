@@ -11,6 +11,8 @@ const router = express.Router();
 router.get("/all-users",auth(UserRole.ADMIN), adminUserController.allUsers);
 router.patch("/soft-delete/:id", auth(UserRole.ADMIN), adminUserController.softDeleteUser);
 router.get("/category-dashboard", auth(UserRole.ADMIN), adminUserController.getCategoryDashboard);
+router.get("/sub-categories", auth(UserRole.ADMIN), adminUserController.subCategoriesTable);
+router.get("/skills", auth(UserRole.ADMIN), adminUserController.skillsTable);
 
 
 export const adminUserRoutes = router;
