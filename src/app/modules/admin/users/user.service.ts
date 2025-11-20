@@ -433,10 +433,183 @@ const getSkillsTable = async (
   };
 };
 
+const getCurrentMonthOrderStats = async () => {
+  const today = new Date();
+  const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+  const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+
+  const orders = await prisma.order.findMany({
+    where: {
+      paymentStatus: "COMPLETED",
+      createdAt: {
+        gte: startOfMonth,
+        lte: endOfMonth,
+      },
+    },
+    select: {
+      userPayAmount: true,
+      createdAt: true,
+    },
+  });
+
+  const dailyMap = new Map<number, number>();
+
+  orders.forEach((o) => {
+    const day = new Date(o.createdAt).getDate();
+    const amount = o.userPayAmount || 0;
+    dailyMap.set(day, (dailyMap.get(day) || 0) + amount);
+  });
+
+  const daysInMonth = endOfMonth.getDate();
+
+  return Array.from({ length: daysInMonth }, (_, i) => ({
+    day: i + 1,
+    amount: dailyMap.get(i + 1) || 0,
+  }));
+};
+
+
+/* const dashboardStats = async (options: any = {}, adminId: string) => {
+  // admin check
+  const admin = await prisma.user.findUnique({ where: { id: adminId } });
+  if (!admin) throw new ApiError(httpStatus.NOT_FOUND, "Admin not found");
+
+  // Parallel queries
+  const [
+    totalUsers,
+    totalActiveUsers,
+    completedOrders,
+    totalRevenueAgg,
+    dailyOrderData,
+  ] = await Promise.all([
+    // total users
+    prisma.user.count(),
+
+    // total active users
+    prisma.user.count({ where: { status: "ACTIVE" } }),
+
+    // all completed orders (for counting top skills)
+    prisma.order.findMany({
+      where: { paymentStatus: "COMPLETED" },
+      include: { skill: true },
+    }),
+
+    // total admin earnings
+    prisma.order.aggregate({
+      where: { paymentStatus: "COMPLETED" },
+      _sum: { adminEarnings: true },
+    }),
+
+    // daily monthly chart data
+    getCurrentMonthOrderStats(),
+  ]);
+
+  // Top skills (>= 3 completed orders)
+  const skillCountMap: Record<string, number> = {};
+  completedOrders.forEach((ord) => {
+    const skill = ord.skill?.skillName;
+    if (!skill) return;
+    skillCountMap[skill] = (skillCountMap[skill] || 0) + 1;
+  });
+
+  const totalTopSkills = Object.values(skillCountMap).filter(
+    (c) => c >= 3
+  ).length;
+
+  return {
+    stats: {
+      totalUsers,
+      totalActiveUsers,
+      totalTopSkills,
+      totalRevenue: totalRevenueAgg._sum.adminEarnings || 0,
+    },
+    data: {
+      month: new Date().toLocaleString("default", {
+        month: "long",
+        year: "numeric",
+      }),
+      dailyOrders: dailyOrderData,
+    },
+  };
+}; */
+
+const dashboardStats = async (options: any = {}, adminId: string) => {
+  // admin check
+  const admin = await prisma.user.findUnique({ where: { id: adminId } });
+  if (!admin) throw new ApiError(httpStatus.NOT_FOUND, "Admin not found");
+
+  // Parallel queries
+  const [
+    totalUsers,
+    totalActiveUsers,
+    totalRemovedUsers,
+    completedOrders,
+    totalRevenueAgg,
+    dailyOrderData,
+  ] = await Promise.all([
+    // total users (only USER role)
+    prisma.user.count({ where: { role: "USER" } }),
+
+    // total active users (USER + not deleted)
+    prisma.user.count({
+      where: { role: "USER", isDeleted: false },
+    }),
+
+    // total removed users
+    prisma.user.count({
+      where: { role: "USER", isDeleted: true },
+    }),
+
+    // all completed orders (for counting top skills)
+    prisma.order.findMany({
+      where: { paymentStatus: "COMPLETED" },
+      include: { skill: true },
+    }),
+
+    // total admin earnings
+    prisma.order.aggregate({
+      where: { paymentStatus: "COMPLETED" },
+      _sum: { adminEarnings: true },
+    }),
+
+    // daily monthly chart data
+    getCurrentMonthOrderStats(),
+  ]);
+
+  // Top skills (>= 3 completed orders)
+  const skillCountMap: Record<string, number> = {};
+  completedOrders.forEach((ord) => {
+    const skill = ord.skill?.skillName;
+    if (!skill) return;
+    skillCountMap[skill] = (skillCountMap[skill] || 0) + 1;
+  });
+
+  const totalTopSkills = Object.values(skillCountMap).filter((c) => c >= 1).length;
+
+  return {
+    stats: {
+      totalUsers,
+      totalActiveUsers,
+      totalRemovedUsers,
+      totalTopSkills,
+      totalRevenue: totalRevenueAgg._sum.adminEarnings || 0,
+    },
+    data: {
+      month: new Date().toLocaleString("default", {
+        month: "long",
+        year: "numeric",
+      }),
+      dailyOrders: dailyOrderData,
+    },
+  };
+};
+
+
 export const adminUserService = {
   allUsers,
   softDeleteUser,
   getCategoryOverview,
   getSubCategoriesTable,
   getSkillsTable,
+  dashboardStats,
 };

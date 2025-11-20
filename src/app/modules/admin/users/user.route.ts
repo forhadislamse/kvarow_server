@@ -13,6 +13,8 @@ router.patch("/soft-delete/:id", auth(UserRole.ADMIN), adminUserController.softD
 router.get("/category-dashboard", auth(UserRole.ADMIN), adminUserController.getCategoryDashboard);
 router.get("/sub-categories", auth(UserRole.ADMIN), adminUserController.subCategoriesTable);
 router.get("/skills", auth(UserRole.ADMIN), adminUserController.skillsTable);
+router.get("/stats", auth(UserRole.ADMIN), adminUserController.getDashboardStats);
+
 
 
 export const adminUserRoutes = router;

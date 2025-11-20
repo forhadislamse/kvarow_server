@@ -81,10 +81,22 @@ const skillsTable = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getDashboardStats = catchAsync(async (req, res) => {
+  const result = await adminUserService.dashboardStats(req.query, req.user?.id);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Dashboard data retrieved successfully",
+    data: result,
+  });
+});
+
 export const adminUserController = {
   allUsers,
   softDeleteUser,
   getCategoryDashboard,
   subCategoriesTable,
   skillsTable,
+  getDashboardStats,
 };
