@@ -21,6 +21,8 @@ router.get(
 
 router.post('/send-offer', auth(), learnController.sendOrderOffer);
 
+router.get('/pending-orders', auth(), learnController.getPendingOrders);
+
 router.get("/instructor/:userId", auth(), learnController.getInstructorByUserIdController);
 
 

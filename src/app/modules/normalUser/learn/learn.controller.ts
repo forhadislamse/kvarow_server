@@ -71,6 +71,19 @@ const sendOrderOffer = catchAsync(async (req, res) => {
   });
 });
 
+const getPendingOrders = catchAsync(async (req: Request, res: Response) => {
+  const studentId = req.user.id;
+
+  const orders = await learnService.getMyPendingOrders(studentId);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Your pending orders fetched successfully",
+    data: orders,
+  });
+});
+
 
 const getInstructorByUserIdController = catchAsync(
   async (req: Request, res: Response) => {
@@ -94,4 +107,5 @@ export const learnController = {
     getInstructorBySkillId,
     sendOrderOffer,
     getInstructorByUserIdController,
+    getPendingOrders,
 };

@@ -174,6 +174,8 @@ const getInstructorBySkillIdService = async (currentUserId: string, skillId: str
     teachingLevel: s.teachingLevel,
     hourlyRateCents: s.hourlyRateCents,
     teachingMode: s.teachingMode,
+    availableDays: s.availableDays,
+    availabilitySchedule: s.availabilitySchedule,
   }));
 
   // 5️⃣ Separate arrays
@@ -349,6 +351,25 @@ const sendOrderOffer = async ({
   return result;
 };
 
+const getMyPendingOrders = async (studentId: string) => {
+  // শুধুমাত্র student এর pending order filter
+  const orders = await prisma.order.findMany({
+    where: {
+      studentId,
+      paymentStatus: "PENDING",
+    },
+    include: {
+      instructor: {
+        select: { id: true, fullName: true, profileImage: true },
+      },
+      skill: true,
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  return orders;
+};
+
 
 const getInstructorByUserIdService = async (currentUserId: string, userId: string) => {
   // 1️⃣ Fetch all skills
@@ -412,4 +433,5 @@ searchInstructorsService,
   getInstructorBySkillIdService,
   sendOrderOffer,
     getInstructorByUserIdService,
+  getMyPendingOrders,
 };
