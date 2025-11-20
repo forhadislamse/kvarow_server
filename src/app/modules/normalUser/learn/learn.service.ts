@@ -1,4 +1,4 @@
-import { SkillLevel, TeachingMode } from "@prisma/client";
+import { OrderStatus, PaymentStatus, SkillLevel, TeachingMode } from "@prisma/client";
 import prisma from "../../../../shared/prisma";
 import ApiError from "../../../../errors/ApiError";
 import httpStatus from "http-status";
@@ -356,7 +356,7 @@ const getMyPendingOrders = async (studentId: string) => {
   const orders = await prisma.order.findMany({
     where: {
       studentId,
-      paymentStatus: "PENDING",
+      paymentStatus: PaymentStatus.PENDING,
     },
     include: {
       instructor: {
@@ -369,6 +369,106 @@ const getMyPendingOrders = async (studentId: string) => {
 
   return orders;
 };
+
+const respondToOrder = async ({
+  orderId,
+  instructorId,
+  action,
+}: {
+  orderId: string;
+  instructorId: string;
+  action: "ACCEPT" | "DENY";
+}) => {
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: { student: true, instructor: true },
+  });
+
+  if (!order) throw new ApiError(httpStatus.NOT_FOUND, "Order not found");
+
+  if (order.instructorId !== instructorId) {
+    throw new ApiError(httpStatus.FORBIDDEN, "You are not the instructor of this order");
+  }
+
+  if (action === "ACCEPT") {
+    // ✅ ACCEPT → status update + chat room creation
+    const updatedOrder = await prisma.order.update({
+      where: { id: orderId },
+      data: { status: OrderStatus.CONFIRMED },
+    });
+
+    // // Optional: Chat room create
+    // await prisma.chatRoom.create({
+    //   data: {
+    //     orderId: order.id,
+    //     members: {
+    //       connect: [{ id: instructorId }, { id: order.studentId }],
+    //     },
+    //   },
+    // });
+
+    return updatedOrder;
+  } else {
+    //  DENY → archive or mark cancelled
+    const updatedOrder = await prisma.order.update({
+      where: { id: orderId },
+      data: { status: OrderStatus.CANCELLED },
+    });
+
+    return updatedOrder;
+  }
+};
+
+const getMyPaidTeachingOrders = async (instructorId: string) => {
+  const orders = await prisma.order.findMany({
+    where: {
+      instructorId,
+      paymentStatus: PaymentStatus.COMPLETED, // শুধুমাত্র paid orders
+    },
+    include: {
+      student: {
+        select: { id: true, fullName: true, profileImage: true },
+      },
+      skill: true, // instructorSkill info
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  return orders;
+};
+
+// Confirmed Orders
+const getConfirmedOrders = async (instructorId: string) => {
+  return await prisma.order.findMany({
+    where: {
+      instructorId,
+      paymentStatus: PaymentStatus.COMPLETED,
+      status: OrderStatus.CONFIRMED,
+    },
+    include: {
+      skill: true, // 👈 skill details সহ নিয়ে আসবে
+      student: true, // চাইলে এটাও useful
+    },
+    orderBy: { createdAt: "desc" },
+  });
+};
+
+// Cancelled Orders
+const getCancelledOrders = async (instructorId: string) => {
+  return await prisma.order.findMany({
+    where: {
+      instructorId,
+      paymentStatus: PaymentStatus.COMPLETED,
+      status: OrderStatus.CANCELLED,
+    },
+    include: {
+      skill: true, // 👈 skill details সহ নিয়ে আসবে
+      student: true, // চাইলে এটাও useful
+    },
+    orderBy: { createdAt: "desc" },
+  });
+};
+
 
 
 const getInstructorByUserIdService = async (currentUserId: string, userId: string) => {
@@ -434,4 +534,8 @@ searchInstructorsService,
   sendOrderOffer,
     getInstructorByUserIdService,
   getMyPendingOrders,
+  getMyPaidTeachingOrders,
+  respondToOrder,
+  getConfirmedOrders,
+  getCancelledOrders
 };

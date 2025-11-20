@@ -243,7 +243,7 @@ model Order {
   id String @id @default(auto()) @map("_id") @db.ObjectId
 
   price Float? // per-hour rate, user input
-  hours Int    // কত ঘন্টা hire করা হয়েছে
+  hours Float?    // কত ঘন্টা hire করা হয়েছে
   orderId String @unique // Unique identifier for the order
 
   // Instructor Skill reference (যে skill hire করা হয়েছে)

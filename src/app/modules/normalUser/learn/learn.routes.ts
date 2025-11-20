@@ -23,7 +23,17 @@ router.post('/send-offer', auth(), learnController.sendOrderOffer);
 
 router.get('/pending-orders', auth(), learnController.getPendingOrders);
 
+router.get('/paid-teaching-orders', auth(), learnController.getPaidTeachingOrders);
+
 router.get("/instructor/:userId", auth(), learnController.getInstructorByUserIdController);
+
+router.patch("/orders/respond/:orderId", auth(), learnController.respondToOrderController);
+
+// Confirmed orders
+router.get("/orders/confirmed", auth(), learnController.getConfirmedOrdersController);
+
+// Cancelled orders
+router.get("/orders/cancelled", auth(), learnController.getCancelledOrdersController);
 
 
 export const learnRoutes = router;

@@ -4,6 +4,7 @@ import sendResponse from "../../../../shared/sendResponse";
 import { Request, Response } from "express";
 import { instructorSkillService } from "../teach/teach.service";
 import { GetInstructorsFilters, learnService } from "./learn.service";
+import ApiError from "../../../../errors/ApiError";
 
 const getAllInstructorsController = catchAsync(async (req: Request, res: Response) => {
   const currentUserId = req.user.id;
@@ -84,6 +85,38 @@ const getPendingOrders = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getPaidTeachingOrders = catchAsync(async (req: Request, res: Response) => {
+  const instructorId = req.user.id;
+
+  const orders = await learnService.getMyPaidTeachingOrders(instructorId);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Your paid teaching orders fetched successfully",
+    data: orders,
+  });
+});
+
+const respondToOrderController = catchAsync(async (req, res) => {
+  const instructorId = req.user.id;
+  const { orderId } = req.params;
+  const { action } = req.body; // "ACCEPT" or "DENY"
+
+  if (!["ACCEPT", "DENY"].includes(action)) {
+    throw new ApiError(httpStatus.BAD_REQUEST, "Invalid action");
+  }
+
+  const result = await learnService.respondToOrder({ orderId, instructorId, action });
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: `Order ${action === "ACCEPT" ? "accepted" : "denied"} successfully`,
+    data: result,
+  });
+});
+
 
 const getInstructorByUserIdController = catchAsync(
   async (req: Request, res: Response) => {
@@ -101,6 +134,29 @@ const getInstructorByUserIdController = catchAsync(
   }
 );
 
+const getConfirmedOrdersController = catchAsync(async (req: Request, res: Response) => {
+  const orders = await learnService.getConfirmedOrders(req.user.id);
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Confirmed orders fetched",
+    data: orders,
+  });
+});
+
+// Cancelled Orders
+const getCancelledOrdersController = catchAsync(async (req: Request, res: Response) => {
+  const orders = await learnService.getCancelledOrders(req.user.id);
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Cancelled orders fetched",
+    data: orders,
+  });
+});
+
 export const learnController = {
   getAllInstructorsController,
     searchInstructorsController,
@@ -108,4 +164,8 @@ export const learnController = {
     sendOrderOffer,
     getInstructorByUserIdController,
     getPendingOrders,
+    getPaidTeachingOrders,
+    respondToOrderController,
+    getConfirmedOrdersController,
+    getCancelledOrdersController,
 };
