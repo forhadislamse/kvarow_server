@@ -3,6 +3,7 @@ import config from "./config";
 import os from "os"; // ✅ add this
 import app from "./app";
 import { initiateSuperAdmin } from "./app/db/db";
+import { setupChatWebSocket } from "./shared/websocket";
 
 // helper function to get local network IP (LAN/Public IP)
 function getLocalIp() {
@@ -29,9 +30,15 @@ async function startServer() {
     console.log(
       `Server is listening on port  http://${localIp}:${config.port}/api/v1`
     );
+    
   });
+  // ✅ Setup Chat WebSocket
+      // Path can be anything, e.g., "/ws/chat"
+      await setupChatWebSocket(server, "/ws/chat");
+      console.log("Chat WebSocket server running at /ws/chat");
 
 }
+
 
 async function main() {
   await startServer();
