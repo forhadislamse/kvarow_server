@@ -138,7 +138,7 @@ const releaseTeacherFund = async (orderId: string, adminId: string) => {
 
   if (!order) throw new ApiError(404, "Order not found");
 
-  if (order.teacherReceiveStatus === "COMPLETED")
+  if (order.teacherReceiveStatus === PaymentStatus.COMPLETED)
     throw new ApiError(400, "Funds already released");
 
   const instructor = await prisma.user.findUnique({
@@ -157,7 +157,7 @@ const releaseTeacherFund = async (orderId: string, adminId: string) => {
 
   await prisma.order.update({
     where: { id: orderId },
-    data: { teacherReceiveStatus: "COMPLETED" },
+    data: { teacherReceiveStatus: PaymentStatus.COMPLETED },
   });
 
   return {
