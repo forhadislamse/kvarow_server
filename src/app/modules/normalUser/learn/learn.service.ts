@@ -12,18 +12,67 @@ export interface GetInstructorsFilters {
   teachingLevel?: string;
 }
 
+// const getAllInstructors = async (
+//   currentUserId: string,
+//   filters: GetInstructorsFilters = {}
+// ) => {
+//   const { skillName, userName, teachingLevel } = filters;
+
+//   // Convert string to enum
+//   let enumTeachingLevel: SkillLevel | undefined;
+//   if (teachingLevel) {
+//     enumTeachingLevel = SkillLevel[teachingLevel.toUpperCase() as keyof typeof SkillLevel];
+//   }
+
+//   const instructors = await prisma.instructorSkill.findMany({
+//     where: {
+//       NOT: { userId: currentUserId },
+
+//       ...(skillName && {
+//         skillName: { contains: skillName, mode: "insensitive" },
+//       }),
+
+//       ...(enumTeachingLevel && { teachingLevel: enumTeachingLevel }),
+
+//       ...(userName && {
+//         user: { fullName: { contains: userName, mode: "insensitive" } },
+//       }),
+//     },
+//     include: {
+//       user: true,
+//     },
+//     orderBy: { hourlyRateCents: "desc" },
+//   });
+
+//   return instructors.map((p) => ({
+//     id: p.id,
+//     userId: p.userId,
+//     userName: p.user.fullName,
+//     skillName: p.skillName,
+//     teachingLevel: p.teachingLevel,
+//     educationTraining: p.educationTraining,
+//     hourlyRateCents: p.hourlyRateCents,
+//     teachingMode: p.teachingMode,
+//     availableDays: p.availableDays,
+//     availabilitySchedule: p.availabilitySchedule,
+//     createdAt: p.createdAt,
+//     updatedAt: p.updatedAt,
+//   }));
+// };
+
 const getAllInstructors = async (
   currentUserId: string,
   filters: GetInstructorsFilters = {}
 ) => {
   const { skillName, userName, teachingLevel } = filters;
 
-  // Convert string to enum
   let enumTeachingLevel: SkillLevel | undefined;
   if (teachingLevel) {
-    enumTeachingLevel = SkillLevel[teachingLevel.toUpperCase() as keyof typeof SkillLevel];
+    enumTeachingLevel =
+      SkillLevel[teachingLevel.toUpperCase() as keyof typeof SkillLevel];
   }
 
+  // 1️⃣ Instructors fetch
   const instructors = await prisma.instructorSkill.findMany({
     where: {
       NOT: { userId: currentUserId },
@@ -41,14 +90,29 @@ const getAllInstructors = async (
     include: {
       user: true,
     },
-    orderBy: { hourlyRateCents: "desc" },
+    orderBy: { createdAt: "desc" },
+    take: 3, // 🔥 recent 3
   });
 
+  // 2️⃣ Skill images collect
+  const skillNames = [...new Set(instructors.map((x) => x.skillName))];
+
+  const skillImages = await prisma.skill.findMany({
+    where: { name: { in: skillNames } },
+    select: { name: true, image: true },
+  });
+
+  const imageMap = Object.fromEntries(
+    skillImages.map((s) => [s.name.toLowerCase(), s.image])
+  );
+
+  // 3️⃣ Map + attach image
   return instructors.map((p) => ({
     id: p.id,
     userId: p.userId,
     userName: p.user.fullName,
     skillName: p.skillName,
+    skillImage: imageMap[p.skillName.toLowerCase()] || null, // 🔥 image added
     teachingLevel: p.teachingLevel,
     educationTraining: p.educationTraining,
     hourlyRateCents: p.hourlyRateCents,

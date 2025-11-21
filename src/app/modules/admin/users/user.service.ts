@@ -17,77 +17,9 @@ export interface IGetAllOptions {
 }
 
 
+
+
 /* const allUsers = async (options: IGetAllOptions = {}, userId: string) => {
-  const { skip, limit, sortBy, sortOrder, page } =
-    paginationHelper.calculatePagination(options);
-
-  // Fetch requesting user
-  const requestingUser = await prisma.user.findUnique({
-    where: { id: userId },
-  });
-  if (!requestingUser) {
-    throw new ApiError(httpStatus.NOT_FOUND, "Requesting user not found!");
-  }
-
-  const isRemoved = options.removed === "true";
-
-  const searchFilter: Prisma.UserWhereInput = {
-    role: "USER",
-    isDeleted: isRemoved,
-    ...(options.search
-      ? {
-          OR: [
-            { fullName: { contains: options.search, mode: "insensitive" } },
-            { email: { contains: options.search, mode: "insensitive" } },
-          ],
-        }
-      : {}),
-  };
-
-  // Fetch users
-  const users = await prisma.user.findMany({
-    where: searchFilter,
-    skip,
-    take: limit,
-    orderBy: sortBy ? { [sortBy]: sortOrder } : { createdAt: "desc" },
-    select: {
-      id: true,
-      fullName: true,
-      email: true,
-      profileImage: true,
-      status: true,
-      createdAt: true,
-    },
-  });
-
-  // Total counts (parallel)
-  const [totalUsersCount, totalActiveUsers, totalRemovedUsers] = await Promise.all([
-    prisma.user.count({ where: searchFilter }),
-    prisma.user.count({ where: { role: "USER", isDeleted: false } }),
-    prisma.user.count({ where: { role: "USER", isDeleted: true } }),
-  ]);
-
-  // Add serial numbers
-  const usersWithSerial = users.map((user, index) => ({
-    serial: skip + index + 1,
-    ...user,
-  }));
-
-  // Always return data (empty array possible)
-  return {
-    meta: {
-      page,
-      limit,
-      totalUsers: totalUsersCount,
-      totalPages: Math.ceil(totalUsersCount / limit),
-      totalActiveUsers,
-      totalRemovedUsers,
-    },
-    data: usersWithSerial,
-  };
-}; */
-
-const allUsers = async (options: IGetAllOptions = {}, userId: string) => {
   const { skip, limit, sortBy, sortOrder, page } =
     paginationHelper.calculatePagination(options);
 
@@ -152,6 +84,82 @@ const allUsers = async (options: IGetAllOptions = {}, userId: string) => {
       totalPages: Math.ceil(totalUsersCount / limit),
       totalActiveUsers,
       totalRemovedUsers,
+    },
+    data: usersWithSerial,
+  };
+};
+ */
+
+const allUsers = async (options: IGetAllOptions = {}, userId: string) => {
+  const { skip, limit, sortBy, sortOrder, page } =
+    paginationHelper.calculatePagination(options);
+
+  const requestingUser = await prisma.user.findUnique({
+    where: { id: userId },
+  });
+  if (!requestingUser) {
+    throw new ApiError(httpStatus.NOT_FOUND, "Requesting user not found!");
+  }
+
+  const isRemoved = options.removed === "true";
+
+  const searchFilter: Prisma.UserWhereInput = {
+    role: "USER",
+    isDeleted: isRemoved,
+    ...(options.search
+      ? {
+          OR: [
+            { fullName: { contains: options.search, mode: "insensitive" } },
+            { email: { contains: options.search, mode: "insensitive" } },
+          ],
+        }
+      : {}),
+  };
+
+  const users = await prisma.user.findMany({
+    where: searchFilter,
+    skip,
+    take: limit,
+    orderBy: sortBy ? { [sortBy]: sortOrder } : { createdAt: "desc" },
+    select: {
+      id: true,
+      fullName: true,
+      email: true,
+      profileImage: true,
+      status: true,
+      createdAt: true,
+    },
+  });
+
+  const [totalActiveUsers, totalRemovedUsers] = await Promise.all([
+    prisma.user.count({ where: { role: "USER", isDeleted: false } }),
+    prisma.user.count({ where: { role: "USER", isDeleted: true } }),
+  ]);
+
+  const totalUsersCount = totalActiveUsers + totalRemovedUsers; // Fixed & never changes
+
+  // totalPages should be based on current filter
+  let totalForPagination = totalUsersCount; // default (all)
+
+  if (options.removed === "true") {
+    totalForPagination = totalRemovedUsers;
+  } else if (options.removed === "false") {
+    totalForPagination = totalActiveUsers;
+  }
+
+  const usersWithSerial = users.map((user, index) => ({
+    serial: skip + index + 1,
+    ...user,
+  }));
+
+  return {
+    meta: {
+      page,
+      limit,
+      totalUsers: totalUsersCount,        // ❗Always active + removed
+      totalActiveUsers,                   // ✔ Pure active
+      totalRemovedUsers,                  // ✔ Pure removed
+      totalPages: Math.ceil(totalForPagination / limit), // ✔ Dynamic based on filter
     },
     data: usersWithSerial,
   };
