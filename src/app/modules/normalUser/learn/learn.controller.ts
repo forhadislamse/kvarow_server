@@ -3,8 +3,28 @@ import catchAsync from "../../../../shared/catchAsync";
 import sendResponse from "../../../../shared/sendResponse";
 import { Request, Response } from "express";
 import { instructorSkillService } from "../teach/teach.service";
-import { GetInstructorsFilters, learnService } from "./learn.service";
+import { GetInstructorsFilters, learnService, RecentSearchService } from "./learn.service";
 import ApiError from "../../../../errors/ApiError";
+import prisma from "../../../../shared/prisma";
+
+// const getAllInstructorsController = catchAsync(async (req: Request, res: Response) => {
+//   const currentUserId = req.user.id;
+
+//   const filters: GetInstructorsFilters = {
+//     skillName: req.query.skillName as string,
+//     userName: req.query.userName as string,
+//     teachingLevel: req.query.teachingLevel as string,
+//   };
+
+//   const instructors = await learnService.getAllInstructors(currentUserId, filters);
+
+//   sendResponse(res, {
+//     statusCode: httpStatus.OK,
+//     success: true,
+//     message: "All instructors fetched successfully",
+//     data: instructors,
+//   });
+// });
 
 const getAllInstructorsController = catchAsync(async (req: Request, res: Response) => {
   const currentUserId = req.user.id;
@@ -15,6 +35,11 @@ const getAllInstructorsController = catchAsync(async (req: Request, res: Respons
     teachingLevel: req.query.teachingLevel as string,
   };
 
+  // Save search keyword to DB
+  if (filters.skillName) {
+    await RecentSearchService.saveSearch(currentUserId, filters.skillName);
+  }
+
   const instructors = await learnService.getAllInstructors(currentUserId, filters);
 
   sendResponse(res, {
@@ -24,6 +49,23 @@ const getAllInstructorsController = catchAsync(async (req: Request, res: Respons
     data: instructors,
   });
 });
+
+const getRecentSearchController = catchAsync(
+  async (req: Request, res: Response) => {
+    const currentUserId = req.user.id;
+
+    const recentSearches = await learnService.getRecentSearches(currentUserId);
+
+    sendResponse(res, {
+      statusCode: httpStatus.OK,
+      success: true,
+      message: "Latest 3 searches fetched successfully",
+      data: recentSearches,
+    });
+  }
+);
+
+
 
 const searchInstructorsController = catchAsync(
   async (req: Request, res: Response) => {
@@ -168,4 +210,5 @@ export const learnController = {
     respondToOrderController,
     getConfirmedOrdersController,
     getCancelledOrdersController,
+    getRecentSearchController,
 };

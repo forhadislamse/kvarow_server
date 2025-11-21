@@ -124,6 +124,43 @@ const getAllInstructors = async (
   }));
 };
 
+export const RecentSearchService = {
+  // Save a search
+  async saveSearch(userId: string, keyword?: string) {
+    if (!keyword) return;
+
+    await prisma.searchHistory.create({
+      data: { userId, keyword },
+    });
+  },
+
+  // Get latest 3 search
+  async getRecentSearches(userId: string) {
+    // Fetch latest 3 distinct searches for this user
+    const searches = await prisma.searchHistory.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+      distinct: ["keyword"], // ensure uniqueness
+      take: 3,
+    });
+
+    const keywords = searches.map((s) => s.keyword);
+
+    if (keywords.length === 0) return [];
+
+    // Get image for each keyword
+    const skills = await prisma.skill.findMany({
+      where: { name: { in: keywords } },
+      select: { name: true, image: true },
+    });
+
+    return keywords.map((keyword) => {
+      const skill = skills.find((s) => s.name === keyword);
+      return { skillName: keyword, image: skill?.image || null };
+    });
+  },
+};
+
 interface SearchQuery {
   teachingLevel?: string; // Teacher level user wants
   teachingMode?: string;  // ONLINE / IN_PERSON
@@ -603,5 +640,7 @@ searchInstructorsService,
   getMyPaidTeachingOrders,
   respondToOrder,
   getConfirmedOrders,
-  getCancelledOrders
+  getCancelledOrders,
+  getRecentSearches: RecentSearchService.getRecentSearches,
+
 };

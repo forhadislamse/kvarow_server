@@ -12,6 +12,12 @@ router.get(
   learnController.getAllInstructorsController
 );
 
+router.get(
+  "/recent-search",
+  auth(),
+  learnController.getRecentSearchController
+);
+
 router.get("/search/instructors", auth(),learnController.searchInstructorsController);
 router.get(
   "/by-skill/:skillId",

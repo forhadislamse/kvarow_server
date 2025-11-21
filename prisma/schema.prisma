@@ -124,6 +124,13 @@ model Skill {
 //   @@unique([userId, categoryId])
 // }
 
+model SearchHistory {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  keyword   String
+  createdAt DateTime @default(now())
+}
+
 enum SkillLevel {
   BEGINNER
   INTERMEDIATE
