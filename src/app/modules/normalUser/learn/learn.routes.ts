@@ -18,6 +18,19 @@ router.get(
   learnController.getRecentSearchController
 );
 
+
+router.get(
+  "/trending-search",
+  auth(),
+  learnController.getTopSkillsController
+);
+
+router.get(
+  "/my-teaching-stats",
+  auth(),
+  learnController.getMyTeachingStatsController
+);
+
 router.get("/search/instructors", auth(),learnController.searchInstructorsController);
 router.get(
   "/by-skill/:skillId",

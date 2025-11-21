@@ -161,6 +161,10 @@ export const RecentSearchService = {
   },
 };
 
+
+
+
+
 interface SearchQuery {
   teachingLevel?: string; // Teacher level user wants
   teachingMode?: string;  // ONLINE / IN_PERSON
@@ -627,6 +631,110 @@ const getInstructorByUserIdService = async (currentUserId: string, userId: strin
   };
 };
 
+const getTopSkills = async (limit: number = 3) => {
+  // 1️⃣ Aggregate order count per skillName from InstructorSkill
+  const topSkillsData = await prisma.instructorSkill.groupBy({
+    by: ["skillName"],
+    _count: { id: true },
+    orderBy: { _count: { id: "desc" } },
+    take: limit,
+  });
+
+  const skillNames = topSkillsData.map((s) => s.skillName);
+
+  // 2️⃣ Fetch images from Skill model
+  const skillsWithImages = await prisma.skill.findMany({
+    where: { name: { in: skillNames } },
+    select: { name: true, image: true },
+  });
+
+  // 3️⃣ Map final response
+  return topSkillsData.map((s) => {
+    const skill = skillsWithImages.find((sk) => sk.name === s.skillName);
+    return {
+      skillName: s.skillName,
+      image: skill?.image || null,
+      totalOrders: s._count.id,
+    };
+  });
+};
+
+const getMyTeachingStats = async (currentUserId: string) => {
+  // 1️⃣ Fetch my instructor skills
+  const mySkills = await prisma.instructorSkill.findMany({
+    where: { userId: currentUserId },
+    select: {
+      id: true,           // InstructorSkill.id
+      skillName: true,
+    },
+  });
+
+  // 1️⃣.5 Fetch skill images
+  const skillNames = [...new Set(mySkills.map((s) => s.skillName))];
+  const skillImages = await prisma.skill.findMany({
+    where: { name: { in: skillNames } },
+    select: { name: true, image: true },
+  });
+
+  const imageMap = Object.fromEntries(
+    skillImages.map((s) => [s.name.toLowerCase(), s.image])
+  );
+
+  // 2️⃣ Map InstructorSkill.id → { skillName, image }
+  const skillIdMap = Object.fromEntries(
+    mySkills.map((s) => [
+      s.id,
+      { skillName: s.skillName, image: imageMap[s.skillName.toLowerCase()] || null },
+    ])
+  );
+
+  // 3️⃣ Fetch confirmed orders where teacherReceiveStatus is PENDING
+  const orders = await prisma.order.findMany({
+    where: {
+      instructorId: currentUserId,
+      status: "CONFIRMED",
+      teacherReceiveStatus: "PENDING",
+    },
+    select: {
+      studentId: true,
+      skillId: true, // InstructorSkill.id
+      teacherReceivedAmount: true,
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  // 4️⃣ Unique student count
+  const uniqueStudentIds = Array.from(new Set(orders.map((o) => o.studentId)));
+
+  // 5️⃣ Build skillStats (your built skills)
+  const skillStats = mySkills.map((s) => ({
+    skillName: s.skillName,
+    image: imageMap[s.skillName.toLowerCase()] || null,
+  }));
+
+  // 6️⃣ Build studentDetails with correct skillName & image
+  const studentDetails = orders.map((o) => ({
+    studentId: o.studentId,
+    skillId: o.skillId,
+    skillName: skillIdMap[o.skillId]?.skillName || null,
+    image: skillIdMap[o.skillId]?.image || null,
+  }));
+
+  // 7️⃣ Total earned
+  const totalEarned = orders.reduce(
+    (sum, o) => sum + (o.teacherReceivedAmount || 0),
+    0
+  );
+
+  return {
+    totalSkills: mySkills.length,
+    totalStudentsTaught: uniqueStudentIds.length,
+    totalEarned,
+    studentDetails,
+    skillStats,
+  };
+};
+
 
 
 
@@ -642,5 +750,7 @@ searchInstructorsService,
   getConfirmedOrders,
   getCancelledOrders,
   getRecentSearches: RecentSearchService.getRecentSearches,
+  getTopSkills,
+  getMyTeachingStats,
 
 };

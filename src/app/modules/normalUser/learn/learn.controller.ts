@@ -65,6 +65,34 @@ const getRecentSearchController = catchAsync(
   }
 );
 
+const getTopSkillsController = catchAsync(
+  async (req: Request, res: Response) => {
+    const topSkills = await learnService.getTopSkills(3);
+
+    sendResponse(res, {
+      statusCode: httpStatus.OK,
+      success: true,
+      message: "Top 3 trending skills fetched successfully",
+      data: topSkills,
+    });
+  }
+);
+
+const getMyTeachingStatsController = catchAsync(
+  async (req: Request, res: Response) => {
+    const currentUserId = req.user.id;
+
+    const stats = await learnService.getMyTeachingStats(currentUserId);
+
+    sendResponse(res, {
+      statusCode: httpStatus.OK,
+      success: true,
+      message: "My teaching stats fetched successfully",
+      data: stats,
+    });
+  }
+);
+
 
 
 const searchInstructorsController = catchAsync(
@@ -211,4 +239,6 @@ export const learnController = {
     getConfirmedOrdersController,
     getCancelledOrdersController,
     getRecentSearchController,
+    getTopSkillsController,
+    getMyTeachingStatsController,
 };
