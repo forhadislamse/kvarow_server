@@ -60,7 +60,7 @@ export interface GetInstructorsFilters {
 //   }));
 // };
 
-const getAllInstructors = async (
+/* const getAllInstructors = async (
   currentUserId: string,
   filters: GetInstructorsFilters = {}
 ) => {
@@ -122,7 +122,63 @@ const getAllInstructors = async (
     createdAt: p.createdAt,
     updatedAt: p.updatedAt,
   }));
+}; */
+
+const getAllInstructors = async (
+  currentUserId: string,
+  filters: GetInstructorsFilters = {}
+) => {
+  const { skillName, userName, teachingLevel } = filters;
+
+  let enumTeachingLevel: SkillLevel | undefined;
+  if (teachingLevel) {
+    enumTeachingLevel =
+      SkillLevel[teachingLevel.toUpperCase() as keyof typeof SkillLevel];
+  }
+
+  // 1️⃣ Instructors fetch
+  const instructors = await prisma.instructorSkill.findMany({
+    where: {
+      NOT: { userId: currentUserId }, // 🔹 exclude self
+
+      ...(skillName ? { skillName: { contains: skillName, mode: "insensitive" } } : {}),
+
+      ...(enumTeachingLevel ? { teachingLevel: enumTeachingLevel } : {}),
+
+      ...(userName ? { user: { fullName: { contains: userName, mode: "insensitive" } } } : {}),
+    },
+    include: { user: true },
+    orderBy: { createdAt: "desc" },
+  });
+
+  // 2️⃣ Skill images collect
+  const skillNames = [...new Set(instructors.map((x) => x.skillName))];
+  const skillImages = await prisma.skill.findMany({
+    where: { name: { in: skillNames } },
+    select: { name: true, image: true },
+  });
+  const imageMap = Object.fromEntries(
+    skillImages.map((s) => [s.name.toLowerCase(), s.image])
+  );
+
+  // 3️⃣ Map + attach image
+  return instructors.map((p) => ({
+    id: p.id,
+    userId: p.userId,
+    userName: p.user.fullName,
+    skillName: p.skillName,
+    skillImage: imageMap[p.skillName.toLowerCase()] || null,
+    teachingLevel: p.teachingLevel,
+    educationTraining: p.educationTraining,
+    hourlyRateCents: p.hourlyRateCents,
+    teachingMode: p.teachingMode,
+    availableDays: p.availableDays,
+    availabilitySchedule: p.availabilitySchedule,
+    createdAt: p.createdAt,
+    updatedAt: p.updatedAt,
+  }));
 };
+
 
 export const RecentSearchService = {
   // Save a search
