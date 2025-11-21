@@ -709,6 +709,7 @@ const getCancelledOrders = async (
 
   const formattedOrders = orders.map((order, index) => ({
     serial: skip + index + 1,
+    orderId: order.id,
     studentName: order.student.fullName,
     teacherName: order.instructor.fullName,
     skillName: order.skill?.skillName || null,
@@ -759,6 +760,7 @@ const getConfirmedOrders = async (
 
   const formattedOrders = orders.map((order, index) => ({
     serial: skip + index + 1,
+    orderId: order.id,
     studentName: order.student.fullName,
     teacherName: order.instructor.fullName,
     skillName: order.skill?.skillName || null,

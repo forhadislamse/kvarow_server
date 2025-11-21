@@ -2,6 +2,9 @@ import httpStatus from "http-status";
 import prisma from "../../../../shared/prisma";
 import ApiError from "../../../../errors/ApiError";
 import { PaymentStatus } from "@prisma/client";
+import config from "../../../../config";
+import { jwtHelpers } from "../../../../helpars/jwtHelpers";
+import stripe from "../../../../shared/stripe";
 
 const createOrderPayment = async ({
   orderId,
@@ -84,9 +87,91 @@ const getMyPayments = async (userId: string) => {
   });
 };
 
+const createStripeAccount = async (token: string) => {
+  const decoded = jwtHelpers.verifyToken(token, config.jwt.jwt_secret!);
+
+  const user = await prisma.user.findUnique({ where: { id: decoded.id } });
+  if (!user) throw new ApiError(404, "User not found");
+
+  const account = await stripe.accounts.create({
+    type: "express",
+    email: user.email!,
+    capabilities: {
+      card_payments: { requested: true },
+      transfers: { requested: true },
+    },
+  });
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { stripeAccountId: account.id },
+  });
+
+  const link = await stripe.accountLinks.create({
+    account: account.id,
+    refresh_url: `${config.client.url}/payment-refresh`,
+    return_url: `${config.client.url}/payment-success`,
+    type: "account_onboarding",
+  });
+
+  return link.url;
+};
+
+const getInstructorDashboardLink = async (userId: string) => {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+
+  if (!user?.stripeAccountId) {
+    throw new ApiError(400, "Stripe account not found");
+  }
+
+  const login = await stripe.accounts.createLoginLink(user.stripeAccountId);
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: { stripeAccountUrl: login.url },
+  });
+
+  return login.url;
+};
+const releaseTeacherFund = async (orderId: string, adminId: string) => {
+  const order = await prisma.order.findUnique({ where: { id: orderId } });
+
+  if (!order) throw new ApiError(404, "Order not found");
+
+  if (order.teacherReceiveStatus === "COMPLETED")
+    throw new ApiError(400, "Funds already released");
+
+  const instructor = await prisma.user.findUnique({
+    where: { id: order.instructorId },
+  });
+
+  if (!instructor?.stripeAccountId)
+    throw new ApiError(400, "Instructor Stripe account not found");
+
+  const transfer = await stripe.transfers.create({
+    amount: Math.round(order.teacherReceivedAmount! * 100),
+    currency: "usd",
+    destination: instructor.stripeAccountId,
+    metadata: { orderId, releasedBy: adminId },
+  });
+
+  await prisma.order.update({
+    where: { id: orderId },
+    data: { teacherReceiveStatus: "COMPLETED" },
+  });
+
+  return {
+    message: "Instructor earning released",
+    transfer,
+  };
+};
+
 export const paymentService = {
   createOrderPayment,
     getAllPayments,
-    getMyPayments
+    getMyPayments,
+    createStripeAccount,  
+    getInstructorDashboardLink,
+    releaseTeacherFund
 };
 

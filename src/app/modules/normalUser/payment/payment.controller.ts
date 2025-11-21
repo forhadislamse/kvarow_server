@@ -61,8 +61,49 @@ const getMyPayments = catchAsync(async (req: Request, res: Response) => {
     data: result,
   });
 });
+
+const createStripeAccount = catchAsync(async (req, res) => {
+  const url = await paymentService.createStripeAccount(req.headers.authorization!);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: httpStatus.OK,
+    message: "Stripe account link generated",
+    data: { url },
+  });
+});
+
+const getUserDashboardLink = catchAsync(async (req, res) => {
+  const url = await paymentService.getInstructorDashboardLink(req.user.id);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: httpStatus.OK,
+    message: "Stripe dashboard link generated",
+    data: url,
+  });
+});
+
+const releaseTeacherFund = catchAsync(async (req, res) => {
+  const transfer = await paymentService.releaseTeacherFund(
+    req.params.orderId,
+    req.user.id
+  );
+
+  sendResponse(res, {
+    success: true,
+    statusCode: httpStatus.OK,
+    message: "Teacher fund released",
+    data: transfer,
+  });
+});
+
 export const paymentController = {
   createPayment,
     getAllPayments, 
-    getMyPayments
+    getMyPayments,
+    createStripeAccount,  
+    getUserDashboardLink,
+    releaseTeacherFund
+
 };
