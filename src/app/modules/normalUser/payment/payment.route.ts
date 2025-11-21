@@ -38,4 +38,9 @@ router.patch(
   paymentController.releaseTeacherFund
 );
 
+// //9. Get refunded payments
+// router.get("/refunded-payments", auth(), PaymentController.getRefundedPayments);
+
+
+
 export const paymentRoutes = router;

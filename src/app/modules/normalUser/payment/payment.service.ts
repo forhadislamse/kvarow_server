@@ -133,7 +133,7 @@ const getInstructorDashboardLink = async (userId: string) => {
 
   return login.url;
 };
-const releaseTeacherFund = async (orderId: string, adminId: string) => {
+/* const releaseTeacherFund = async (orderId: string, adminId: string) => {
   const order = await prisma.order.findUnique({ where: { id: orderId } });
 
   if (!order) throw new ApiError(404, "Order not found");
@@ -164,6 +164,121 @@ const releaseTeacherFund = async (orderId: string, adminId: string) => {
     message: "Instructor earning released",
     transfer,
   };
+}; */
+
+const releaseTeacherFund = async (orderId: string, adminId: string) => {
+  const order = await prisma.order.findUnique({ where: { id: orderId } });
+
+  if (!order) throw new ApiError(404, "Order not found");
+
+  if (order.teacherReceiveStatus === PaymentStatus.COMPLETED)
+    throw new ApiError(400, "Funds already released");
+
+  const instructor = await prisma.user.findUnique({
+    where: { id: order.instructorId },
+  });
+
+  if (!instructor?.stripeAccountId)
+    throw new ApiError(400, "Instructor Stripe account not found");
+
+  // 1️⃣ Retrieve connected account
+  const connectedAccount = await stripe.accounts.retrieve(
+    instructor.stripeAccountId
+  );
+
+  // 2️⃣ Check if transfers capability is active
+  const transferCapability = connectedAccount.capabilities?.transfers;
+
+  if (transferCapability !== "active") {
+    // If capability was never requested → request it
+    await stripe.accounts.update(instructor.stripeAccountId, {
+      capabilities: {
+        transfers: { requested: true },
+      },
+    });
+
+    throw new ApiError(
+      400,
+      "Instructor Stripe account is not ready to receive transfers. Capability requested — instructor must complete onboarding."
+    );
+  }
+
+  // 3️⃣ Create the transfer
+  const transfer = await stripe.transfers.create({
+    amount: Math.round(order.teacherReceivedAmount! * 100),
+    currency: "usd",
+    destination: instructor.stripeAccountId,
+    metadata: { orderId, releasedBy: adminId },
+  });
+
+  // 4️⃣ Update order status
+  await prisma.order.update({
+    where: { id: orderId },
+    data: { teacherReceiveStatus: PaymentStatus.COMPLETED },
+  });
+
+  return {
+    message: "Instructor earning released",
+    transfer,
+  };
+};
+
+const getRefundedPayments = async (
+  userId: string,
+  query: any
+) => {
+  const {
+    page = 1,
+    limit = 10,
+    sortBy = "createdAt",
+    sortOrder = "desc",
+    startDate,
+    endDate,
+  } = query;
+
+  const skip = (Number(page) - 1) * Number(limit);
+
+  // Base filter
+  const where: any = {
+    status: PaymentStatus.REFUNDED,
+  };
+
+  // Filter by user → student বা instructor যারাই refund request করেছে
+  where.userId = userId;
+
+  // Date range filter
+  if (startDate && endDate) {
+    where.createdAt = {
+      gte: new Date(startDate),
+      lte: new Date(endDate),
+    };
+  }
+
+  // Total count
+  const total = await prisma.payment.count({ where });
+
+  // Main query
+  const payments = await prisma.payment.findMany({
+    where,
+    skip,
+    take: Number(limit),
+    orderBy: {
+      [sortBy]: sortOrder,
+    },
+    include: {
+      order: true, // চাইলে order details পাঠাতে পারো
+    },
+  });
+
+  return {
+    meta: {
+      page: Number(page),
+      limit: Number(limit),
+      total,
+      totalPage: Math.ceil(total / Number(limit)),
+    },
+    data: payments,
+  };
 };
 
 export const paymentService = {
@@ -172,6 +287,7 @@ export const paymentService = {
     getMyPayments,
     createStripeAccount,  
     getInstructorDashboardLink,
-    releaseTeacherFund
+    releaseTeacherFund,
+    getRefundedPayments,
 };
 

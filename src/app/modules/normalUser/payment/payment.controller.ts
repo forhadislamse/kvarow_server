@@ -98,12 +98,28 @@ const releaseTeacherFund = catchAsync(async (req, res) => {
   });
 });
 
+const getRefundedPayments = catchAsync(async (req, res) => {
+  const userId = req.user.id; // decoded from auth middleware
+  const query = req.query;
+
+  const result = await paymentService.getRefundedPayments(userId, query);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Refunded payments fetched successfully",
+    meta: result.meta,
+    data: result.data,
+  });
+});
+
 export const paymentController = {
   createPayment,
     getAllPayments, 
     getMyPayments,
     createStripeAccount,  
     getUserDashboardLink,
-    releaseTeacherFund
+    releaseTeacherFund,
+    getRefundedPayments,
 
 };
