@@ -122,6 +122,20 @@ const getConfirmedOrdersController = catchAsync(async (req: Request, res: Respon
   });
 });
 
+const getFinancialSummaryController = catchAsync(
+  async (req: Request, res: Response) => {
+    const adminId = req.user?.id; // auth middleware থেকে এসেছে
+    const summary = await adminUserService.getFinancialSummary(adminId);
+
+    sendResponse(res, {
+      statusCode: 200,
+      success: true,
+      message: "Financial summary retrieved successfully",
+      data: summary,
+    });
+  }
+);
+
 export const adminUserController = {
   allUsers,
   softDeleteUser,
@@ -131,4 +145,5 @@ export const adminUserController = {
   getDashboardStats,
   getCancelledOrdersController,
   getConfirmedOrdersController,
+  getFinancialSummaryController,
 };

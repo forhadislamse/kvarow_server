@@ -16,6 +16,8 @@ router.get("/skills", auth(UserRole.ADMIN), adminUserController.skillsTable);
 router.get("/stats", auth(UserRole.ADMIN), adminUserController.getDashboardStats);
 router.get("/cancelled-orders", auth(UserRole.ADMIN), adminUserController.getCancelledOrdersController);
 router.get("/confirmed-orders", auth(UserRole.ADMIN), adminUserController.getConfirmedOrdersController);
+router.get("/financial-summary", auth(UserRole.ADMIN), adminUserController.getFinancialSummaryController);
+
 
 
 

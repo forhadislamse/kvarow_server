@@ -786,6 +786,37 @@ const getConfirmedOrders = async (
   };
 };
 
+const getFinancialSummary = async (adminId: string) => {
+  // admin check
+  const admin = await prisma.user.findUnique({ where: { id: adminId } });
+  if (!admin || !["ADMIN", "SUPER_ADMIN"].includes(admin.role)) {
+    throw new Error("Only ADMIN can access this data");
+  }
+
+  const [totalTransactionAgg, totalRefundAgg, totalPendingFundAgg] =
+    await Promise.all([
+      prisma.order.aggregate({
+        where: { paymentStatus: PaymentStatus.COMPLETED },
+        _sum: { userPayAmount: true },
+      }),
+      prisma.order.aggregate({
+        where: { status: OrderStatus.CANCELLED, teacherReceiveStatus: PaymentStatus.REFUNDED
+         },
+        _sum: { userPayAmount: true },
+      }),
+      prisma.order.aggregate({
+        where: { status: OrderStatus.CANCELLED, teacherReceiveStatus: PaymentStatus.PENDING },
+        _sum: { userPayAmount: true },
+      }),
+    ]);
+
+  return {
+    totalTransaction: totalTransactionAgg._sum.userPayAmount || 0,
+    totalRefund: totalRefundAgg._sum.userPayAmount || 0,
+    totalPendingFund: totalPendingFundAgg._sum.userPayAmount || 0,
+  };
+};
+
 
 export const adminUserService = {
   allUsers,
@@ -795,5 +826,6 @@ export const adminUserService = {
   getSkillsTable,
   dashboardStats,
   getCancelledOrders,
-  getConfirmedOrders
+  getConfirmedOrders,
+  getFinancialSummary,
 };
