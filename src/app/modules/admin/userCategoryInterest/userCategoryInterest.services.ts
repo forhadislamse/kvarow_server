@@ -88,7 +88,7 @@
 //     throw new ApiError(httpStatus.FORBIDDEN, "You cannot delete this interest");
 //   }
 
-//   return await prisma.userCategoryInterest.delete({ where: { id } });
+//   return await prisma.UserCategoryInterest.delete({ where: { id } });
 // };
 
 // export const userCategoryInterestService = {

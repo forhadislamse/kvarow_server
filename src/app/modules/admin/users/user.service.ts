@@ -1,7 +1,7 @@
 import httpStatus from "http-status";
 import ApiError from "../../../../errors/ApiError";
 import prisma from "../../../../shared/prisma";
-import { Prisma, UserRole, UserStatus } from "@prisma/client";
+import { OrderStatus, PaymentStatus, Prisma, UserRole, UserStatus } from "@prisma/client";
 import { paginationHelper } from "../../../../helpars/paginationHelper";
 
 
@@ -17,7 +17,7 @@ export interface IGetAllOptions {
 }
 
 
-const allUsers = async (options: IGetAllOptions = {}, userId: string) => {
+/* const allUsers = async (options: IGetAllOptions = {}, userId: string) => {
   const { skip, limit, sortBy, sortOrder, page } =
     paginationHelper.calculatePagination(options);
 
@@ -85,7 +85,78 @@ const allUsers = async (options: IGetAllOptions = {}, userId: string) => {
     },
     data: usersWithSerial,
   };
+}; */
+
+const allUsers = async (options: IGetAllOptions = {}, userId: string) => {
+  const { skip, limit, sortBy, sortOrder, page } =
+    paginationHelper.calculatePagination(options);
+
+  // Fetch requesting user
+  const requestingUser = await prisma.user.findUnique({
+    where: { id: userId },
+  });
+  if (!requestingUser) {
+    throw new ApiError(httpStatus.NOT_FOUND, "Requesting user not found!");
+  }
+
+  const isRemoved = options.removed === "true";
+
+  const searchFilter: Prisma.UserWhereInput = {
+    role: "USER",
+    isDeleted: isRemoved,
+    ...(options.search
+      ? {
+          OR: [
+            { fullName: { contains: options.search, mode: "insensitive" } },
+            { email: { contains: options.search, mode: "insensitive" } },
+          ],
+        }
+      : {}),
+  };
+
+  // Fetch users
+  const users = await prisma.user.findMany({
+    where: searchFilter,
+    skip,
+    take: limit,
+    orderBy: sortBy ? { [sortBy]: sortOrder } : { createdAt: "desc" },
+    select: {
+      id: true,
+      fullName: true,
+      email: true,
+      profileImage: true,
+      status: true,
+      createdAt: true,
+    },
+  });
+
+  // Total counts (parallel)
+  const [totalActiveUsers, totalRemovedUsers] = await Promise.all([
+    prisma.user.count({ where: { role: "USER", isDeleted: false } }),
+    prisma.user.count({ where: { role: "USER", isDeleted: true } }),
+  ]);
+
+  const totalUsersCount = totalActiveUsers + totalRemovedUsers; // updated here
+
+  // Add serial numbers
+  const usersWithSerial = users.map((user, index) => ({
+    serial: skip + index + 1,
+    ...user,
+  }));
+
+  return {
+    meta: {
+      page,
+      limit,
+      totalUsers: totalUsersCount,
+      totalPages: Math.ceil(totalUsersCount / limit),
+      totalActiveUsers,
+      totalRemovedUsers,
+    },
+    data: usersWithSerial,
+  };
 };
+
 
 const softDeleteUser = async (userIdToDelete: string, adminId: string) => {
   // 1️⃣ Verify admin exists
@@ -605,6 +676,107 @@ const dashboardStats = async (options: any = {}, adminId: string) => {
 };
 
 
+const getCancelledOrders = async (
+  userId: string,
+  role: string,
+  options: IOptions = {}
+) => {
+  if (role !== "ADMIN") {
+    throw new ApiError(403, "Only Admin can access cancelled orders");
+  }
+
+  const { page, limit, skip, sortBy, sortOrder } =
+    paginationHelper.calculatePagination(options);
+
+  const orders = await prisma.order.findMany({
+    where: {
+      status: OrderStatus.CANCELLED,
+      paymentStatus: PaymentStatus.COMPLETED,
+    },
+    include: {
+      student: { select: { fullName: true } },
+      instructor: { select: { fullName: true } },
+      skill: { select: { skillName: true } },
+    },
+    skip,
+    take: limit,
+    orderBy: { [sortBy]: sortOrder },
+  });
+
+  const totalOrders = await prisma.order.count({
+    where: { status: OrderStatus.CANCELLED, paymentStatus: PaymentStatus.COMPLETED },
+  });
+
+  const formattedOrders = orders.map((order, index) => ({
+    serial: skip + index + 1,
+    studentName: order.student.fullName,
+    teacherName: order.instructor.fullName,
+    skillName: order.skill?.skillName || null,
+    createdAt: order.createdAt,
+  }));
+
+  return {
+    meta: {
+      page,
+      limit,
+      totalOrders,
+      totalPages: Math.ceil(totalOrders / limit),
+    },
+    data: formattedOrders,
+  };
+};
+
+const getConfirmedOrders = async (
+  userId: string,
+  role: string,
+  options: IOptions = {}
+) => {
+  if (role !== "ADMIN") {
+    throw new ApiError(403, "Only Admin can access confirmed orders");
+  }
+
+  const { page, limit, skip, sortBy, sortOrder } =
+    paginationHelper.calculatePagination(options);
+
+  const orders = await prisma.order.findMany({
+    where: {
+      status: OrderStatus.CONFIRMED,
+      paymentStatus: PaymentStatus.COMPLETED,
+    },
+    include: {
+      student: { select: { fullName: true } },
+      instructor: { select: { fullName: true } },
+      skill: { select: { skillName: true } },
+    },
+    skip,
+    take: limit,
+    orderBy: { [sortBy]: sortOrder },
+  });
+
+  const totalOrders = await prisma.order.count({
+    where: { status: OrderStatus.CONFIRMED, paymentStatus: PaymentStatus.COMPLETED },
+  });
+
+  const formattedOrders = orders.map((order, index) => ({
+    serial: skip + index + 1,
+    studentName: order.student.fullName,
+    teacherName: order.instructor.fullName,
+    skillName: order.skill?.skillName || null,
+    createdAt: order.createdAt,
+  }));
+
+  return {
+    meta: {
+      page,
+      limit,
+      totalOrders,
+      totalPages: Math.ceil(totalOrders / limit),
+    },
+    data: formattedOrders,
+  };
+};
+
+
 export const adminUserService = {
   allUsers,
   softDeleteUser,
@@ -612,4 +784,6 @@ export const adminUserService = {
   getSubCategoriesTable,
   getSkillsTable,
   dashboardStats,
+  getCancelledOrders,
+  getConfirmedOrders
 };

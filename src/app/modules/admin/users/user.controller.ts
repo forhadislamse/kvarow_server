@@ -92,6 +92,36 @@ const getDashboardStats = catchAsync(async (req, res) => {
   });
 });
 
+const getCancelledOrdersController = catchAsync(async (req: Request, res: Response) => {
+  const userId = req.user.id;
+  const role = req.user.role;
+  const options = req.query;
+
+  const orders = await adminUserService.getCancelledOrders(userId, role, options );
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Cancelled orders fetched successfully",
+    data: orders,
+  });
+});
+
+const getConfirmedOrdersController = catchAsync(async (req: Request, res: Response) => {
+  const userId = req.user.id;
+  const role = req.user.role;
+  const options = req.query;
+
+  const orders = await adminUserService.getConfirmedOrders(userId, role, options );
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Confirmed orders fetched successfully",
+    data: orders,
+  });
+});
+
 export const adminUserController = {
   allUsers,
   softDeleteUser,
@@ -99,4 +129,6 @@ export const adminUserController = {
   subCategoriesTable,
   skillsTable,
   getDashboardStats,
+  getCancelledOrdersController,
+  getConfirmedOrdersController,
 };

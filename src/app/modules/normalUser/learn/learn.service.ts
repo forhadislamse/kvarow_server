@@ -423,7 +423,9 @@ const getMyPaidTeachingOrders = async (instructorId: string) => {
   const orders = await prisma.order.findMany({
     where: {
       instructorId,
-      paymentStatus: PaymentStatus.COMPLETED, // শুধুমাত্র paid orders
+      paymentStatus: PaymentStatus.COMPLETED,
+       // শুধুমাত্র paid orders
+       status: OrderStatus.PENDING
     },
     include: {
       student: {

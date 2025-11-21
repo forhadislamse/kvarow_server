@@ -14,6 +14,8 @@ router.get("/category-dashboard", auth(UserRole.ADMIN), adminUserController.getC
 router.get("/sub-categories", auth(UserRole.ADMIN), adminUserController.subCategoriesTable);
 router.get("/skills", auth(UserRole.ADMIN), adminUserController.skillsTable);
 router.get("/stats", auth(UserRole.ADMIN), adminUserController.getDashboardStats);
+router.get("/cancelled-orders", auth(UserRole.ADMIN), adminUserController.getCancelledOrdersController);
+router.get("/confirmed-orders", auth(UserRole.ADMIN), adminUserController.getConfirmedOrdersController);
 
 
 
