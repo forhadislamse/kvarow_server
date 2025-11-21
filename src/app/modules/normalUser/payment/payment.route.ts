@@ -38,6 +38,15 @@ router.patch(
   paymentController.releaseTeacherFund
 );
 
+// Only admin can refund
+router.patch(
+  "/orders/:orderId/refund",
+  auth(UserRole.ADMIN),
+  paymentController.refundOrderPayment
+);
+
+
+
 // //9. Get refunded payments
 // router.get("/refunded-payments", auth(), PaymentController.getRefundedPayments);
 

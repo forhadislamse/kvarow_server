@@ -113,6 +113,23 @@ const getRefundedPayments = catchAsync(async (req, res) => {
   });
 });
 
+const refundOrderPayment = catchAsync(async (req, res) => {
+  const token = req.headers.authorization;
+
+  const result = await paymentService.handleRefundByOrderId(
+    token!,
+    req.params.orderId,
+    req.body.reason
+  );
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Payment refunded successfully",
+    data: result,
+  });
+});
+
 export const paymentController = {
   createPayment,
     getAllPayments, 
@@ -120,6 +137,7 @@ export const paymentController = {
     createStripeAccount,  
     getUserDashboardLink,
     releaseTeacherFund,
+    refundOrderPayment,
     getRefundedPayments,
 
 };

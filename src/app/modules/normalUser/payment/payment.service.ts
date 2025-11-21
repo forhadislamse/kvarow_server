@@ -5,6 +5,7 @@ import { PaymentStatus } from "@prisma/client";
 import config from "../../../../config";
 import { jwtHelpers } from "../../../../helpars/jwtHelpers";
 import stripe from "../../../../shared/stripe";
+import type Stripe from "stripe";
 
 const createOrderPayment = async ({
   orderId,
@@ -281,6 +282,71 @@ const getRefundedPayments = async (
   };
 };
 
+const handleRefundByOrderId = async (userToken: string, orderId: string, reason?: string) => {
+  try {
+    const decodedToken = jwtHelpers.verifyToken(
+      userToken,
+      config.jwt.jwt_secret!
+    );
+
+    // 1️⃣ Find the order by orderId
+    const order = await prisma.order.findUnique({
+      where: { orderId },
+    });
+
+    if (!order) {
+      throw new ApiError(404, "Order not found");
+    }
+
+    // 2️⃣ If already refunded
+    if (order.paymentStatus === PaymentStatus.REFUNDED) {
+      throw new ApiError(400, "Payment already refunded");
+    }
+
+    // 3️⃣ Refund allowed only when order cancelled
+    if (order.status !== "CANCELLED") {
+      throw new ApiError(400, "Refund only allowed for cancelled orders");
+    }
+
+    // 4️⃣ Must be a card payment
+    if (order.paymentMethod !== "CARD") {
+      throw new ApiError(400, "Refund only supported for CARD payments");
+    }
+
+    if (!order.stripePaymentIntentId) {
+      throw new ApiError(400, "Stripe payment intent ID missing");
+    }
+
+    if (!order.userPayAmount) {
+      throw new ApiError(400, "Order userPayAmount is missing");
+    }
+
+    const refund = await stripe.refunds.create({
+      payment_intent: order.stripePaymentIntentId,
+      reason: (reason as Stripe.RefundCreateParams.Reason) || "requested_by_customer",
+      amount: Math.round(order.userPayAmount * 100), // refund only user paid amount
+    } as Stripe.RefundCreateParams);
+
+    // 6️⃣ Update order payment status
+    await prisma.order.update({
+      where: { orderId },
+      data: {
+        paymentStatus: PaymentStatus.REFUNDED,
+      },
+    });
+
+    return {
+      success: true,
+      message: "Payment refunded successfully",
+      refundId: refund.id,
+    };
+  } catch (error) {
+    console.error("Refund error:", error);
+    throw error;
+  }
+};
+
+
 export const paymentService = {
   createOrderPayment,
     getAllPayments,
@@ -289,5 +355,6 @@ export const paymentService = {
     getInstructorDashboardLink,
     releaseTeacherFund,
     getRefundedPayments,
+    handleRefundByOrderId
 };
 

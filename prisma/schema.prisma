@@ -278,6 +278,8 @@ model Order {
   paymentMethod PaymentType   @default(CARD)
   paymentStatus PaymentStatus @default(PENDING)
 
+  stripePaymentIntentId  String?   // 🔥 ADD THIS
+
   // Actual amounts
   teacherReceiveStatus  PaymentStatus @default(PENDING)
   userPayAmount         Float? // student pays
