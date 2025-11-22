@@ -90,7 +90,7 @@ export interface IGetAllOptions {
 };
  */
 
-const allUsers = async (options: IGetAllOptions = {}, userId: string) => {
+/* const allUsers = async (options: IGetAllOptions = {}, userId: string) => {
   const { skip, limit, sortBy, sortOrder, page } =
     paginationHelper.calculatePagination(options);
 
@@ -163,8 +163,82 @@ const allUsers = async (options: IGetAllOptions = {}, userId: string) => {
     },
     data: usersWithSerial,
   };
-};
+}; */
 
+const allUsers = async (options: IGetAllOptions = {}, userId: string) => {
+  const { skip, limit, sortBy, sortOrder, page } =
+    paginationHelper.calculatePagination(options);
+
+  const requestingUser = await prisma.user.findUnique({
+    where: { id: userId },
+  });
+  if (!requestingUser) {
+    throw new ApiError(httpStatus.NOT_FOUND, "Requesting user not found!");
+  }
+
+  // Filter logic (dynamic)
+  const searchFilter: Prisma.UserWhereInput = {
+    role: "USER",
+
+    ...(options.removed === "true"
+      ? { isDeleted: true }
+      : options.removed === "false"
+      ? { isDeleted: false }
+      : {}),
+
+    ...(options.search
+      ? {
+          OR: [
+            { fullName: { contains: options.search, mode: "insensitive" } },
+            { email: { contains: options.search, mode: "insensitive" } },
+          ],
+        }
+      : {}),
+  };
+
+  const users = await prisma.user.findMany({
+    where: searchFilter,
+    skip,
+    take: limit,
+    orderBy: sortBy ? { [sortBy]: sortOrder } : { createdAt: "desc" },
+    select: {
+      id: true,
+      fullName: true,
+      email: true,
+      profileImage: true,
+      status: true,
+      createdAt: true,
+    },
+  });
+
+  // Total (global)
+  const [totalActiveUsers, totalRemovedUsers] = await Promise.all([
+    prisma.user.count({ where: { role: "USER", isDeleted: false } }),
+    prisma.user.count({ where: { role: "USER", isDeleted: true } }),
+  ]);
+
+  const totalUsersCount = totalActiveUsers + totalRemovedUsers;
+
+  // For pagination → count only filtered users
+  const filteredUsersCount = await prisma.user.count({ where: searchFilter });
+
+  const usersWithSerial = users.map((u, index) => ({
+    serial: skip + index + 1,
+    ...u,
+  }));
+
+  return {
+    meta: {
+      page,
+      limit,
+      totalUsers: totalUsersCount,
+      totalActiveUsers,
+      totalRemovedUsers,
+      totalPages: Math.ceil(filteredUsersCount / limit),
+    },
+    data: usersWithSerial,
+  };
+};
 
 const softDeleteUser = async (userIdToDelete: string, adminId: string) => {
   // 1️⃣ Verify admin exists

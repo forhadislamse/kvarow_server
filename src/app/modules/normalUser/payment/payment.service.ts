@@ -134,40 +134,8 @@ const getInstructorDashboardLink = async (userId: string) => {
 
   return login.url;
 };
+
 /* const releaseTeacherFund = async (orderId: string, adminId: string) => {
-  const order = await prisma.order.findUnique({ where: { id: orderId } });
-
-  if (!order) throw new ApiError(404, "Order not found");
-
-  if (order.teacherReceiveStatus === PaymentStatus.COMPLETED)
-    throw new ApiError(400, "Funds already released");
-
-  const instructor = await prisma.user.findUnique({
-    where: { id: order.instructorId },
-  });
-
-  if (!instructor?.stripeAccountId)
-    throw new ApiError(400, "Instructor Stripe account not found");
-
-  const transfer = await stripe.transfers.create({
-    amount: Math.round(order.teacherReceivedAmount! * 100),
-    currency: "usd",
-    destination: instructor.stripeAccountId,
-    metadata: { orderId, releasedBy: adminId },
-  });
-
-  await prisma.order.update({
-    where: { id: orderId },
-    data: { teacherReceiveStatus: PaymentStatus.COMPLETED },
-  });
-
-  return {
-    message: "Instructor earning released",
-    transfer,
-  };
-}; */
-
-const releaseTeacherFund = async (orderId: string, adminId: string) => {
   const order = await prisma.order.findUnique({ where: { id: orderId } });
 
   if (!order) throw new ApiError(404, "Order not found");
@@ -220,6 +188,87 @@ const releaseTeacherFund = async (orderId: string, adminId: string) => {
 
   return {
     message: "Instructor earning released",
+    transfer,
+  };
+}; */
+
+const releaseTeacherFund = async (orderId: string, adminId: string) => {
+  // 1️⃣ Find the order
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+  });
+
+  if (!order) throw new ApiError(404, "Order not found");
+
+  if (order.teacherReceiveStatus === PaymentStatus.COMPLETED) {
+    throw new ApiError(400, "Funds already released for this order");
+  }
+
+  if (!order.teacherReceivedAmount || order.teacherReceivedAmount <= 0) {
+    throw new ApiError(400, "Invalid instructor payout amount");
+  }
+
+  // 2️⃣ Check if the user is actually an instructor
+  const isInstructor = await prisma.instructorSkill.findFirst({
+    where: { userId: order.instructorId },
+  });
+
+  if (!isInstructor) {
+    throw new ApiError(400, "This user is not registered as an instructor");
+  }
+
+  // 3️⃣ Fetch instructor user data
+  const instructor = await prisma.user.findUnique({
+    where: { id: order.instructorId },
+  });
+
+  if (!instructor?.stripeAccountId) {
+    throw new ApiError(400, "Instructor Stripe account not found");
+  }
+
+  // 4️⃣ Retrieve the connected account from Stripe
+  const connectedAccount = await stripe.accounts.retrieve(
+    instructor.stripeAccountId
+  );
+
+  const transferCapability = connectedAccount.capabilities?.transfers;
+
+  // 5️⃣ Ensure transfers capability is active
+  if (transferCapability !== "active") {
+    // Request capability (needed at least once)
+    await stripe.accounts.update(instructor.stripeAccountId, {
+      capabilities: {
+        transfers: { requested: true },
+      },
+    });
+
+    throw new ApiError(
+      400,
+      "Instructor must complete Stripe onboarding before receiving payments."
+    );
+  }
+
+  // 6️⃣ Create the transfer
+  const transfer = await stripe.transfers.create({
+    amount: Math.round(order.teacherReceivedAmount * 100), // convert USD → cents
+    currency: "usd",
+    destination: instructor.stripeAccountId,
+    metadata: {
+      orderId,
+      releasedBy: adminId,
+    },
+  });
+
+  // 7️⃣ Update order payout status
+  await prisma.order.update({
+    where: { id: orderId },
+    data: {
+      teacherReceiveStatus: PaymentStatus.COMPLETED,
+    },
+  });
+
+  return {
+    message: "Instructor earning has been released successfully",
     transfer,
   };
 };
