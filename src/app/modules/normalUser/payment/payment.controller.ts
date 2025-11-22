@@ -114,11 +114,11 @@ const getRefundedPayments = catchAsync(async (req, res) => {
 });
 
 const refundOrderPayment = catchAsync(async (req, res) => {
-  const token = req.headers.authorization;
+  const token = req.headers.authorization; // full token
 
   const result = await paymentService.handleRefundByOrderId(
-    token!,
-    req.params.orderId,
+    req.user.id,             // adminId
+    req.params.orderId,      // order _id
     req.body.reason
   );
 

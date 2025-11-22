@@ -331,68 +331,74 @@ const getRefundedPayments = async (
   };
 };
 
-const handleRefundByOrderId = async (userToken: string, orderId: string, reason?: string) => {
-  try {
-    const decodedToken = jwtHelpers.verifyToken(
-      userToken,
-      config.jwt.jwt_secret!
-    );
+const handleRefundByOrderId = async (
+  adminId: string,
+  orderObjectId: string,
+  reason?: string
+) => {
+  // 1️⃣ Find order by order _id
+  const order = await prisma.order.findUnique({
+    where: { id: orderObjectId },
+  });
 
-    // 1️⃣ Find the order by orderId
-    const order = await prisma.order.findUnique({
-      where: { orderId },
-    });
+  if (!order) throw new ApiError(404, "Order not found");
 
-    if (!order) {
-      throw new ApiError(404, "Order not found");
-    }
+  if (order.paymentStatus === PaymentStatus.REFUNDED)
+    throw new ApiError(400, "Payment already refunded");
 
-    // 2️⃣ If already refunded
-    if (order.paymentStatus === PaymentStatus.REFUNDED) {
-      throw new ApiError(400, "Payment already refunded");
-    }
+  if (order.status !== "CANCELLED")
+    throw new ApiError(400, "Refund only allowed for cancelled orders");
 
-    // 3️⃣ Refund allowed only when order cancelled
-    if (order.status !== "CANCELLED") {
-      throw new ApiError(400, "Refund only allowed for cancelled orders");
-    }
+  if (order.paymentMethod !== "CARD")
+    throw new ApiError(400, "Refund only supported for CARD payments");
 
-    // 4️⃣ Must be a card payment
-    if (order.paymentMethod !== "CARD") {
-      throw new ApiError(400, "Refund only supported for CARD payments");
-    }
+  // 2️⃣ Find Payment from payment table
+  const payment = await prisma.payment.findFirst({
+    where: {
+      orderId: orderObjectId,
+      paymentGateway: "STRIPE",
+      status: "COMPLETED",
+    },
+  });
 
-    if (!order.stripePaymentIntentId) {
-      throw new ApiError(400, "Stripe payment intent ID missing");
-    }
+  if (!payment)
+    throw new ApiError(404, "Completed payment record not found");
 
-    if (!order.userPayAmount) {
-      throw new ApiError(400, "Order userPayAmount is missing");
-    }
+  if (!payment.paymentMethod)
+    throw new ApiError(400, "Payment method missing");
 
-    const refund = await stripe.refunds.create({
-      payment_intent: order.stripePaymentIntentId,
-      reason: (reason as Stripe.RefundCreateParams.Reason) || "requested_by_customer",
-      amount: Math.round(order.userPayAmount * 100), // refund only user paid amount
-    } as Stripe.RefundCreateParams);
+  if (!payment.paymentMethod.startsWith("pm_"))
+    throw new ApiError(400, "Invalid Stripe payment method");
 
-    // 6️⃣ Update order payment status
-    await prisma.order.update({
-      where: { orderId },
-      data: {
-        paymentStatus: PaymentStatus.REFUNDED,
-      },
-    });
+  if (!payment.stripePaymentIntentId)
+    throw new ApiError(400, "Stripe payment intent ID missing");
 
-    return {
-      success: true,
-      message: "Payment refunded successfully",
-      refundId: refund.id,
-    };
-  } catch (error) {
-    console.error("Refund error:", error);
-    throw error;
-  }
+  if (!payment.amount)
+    throw new ApiError(400, "Payment amount missing");
+
+  // 3️⃣ Stripe Refund
+  const refund = await stripe.refunds.create({
+    payment_intent: payment.stripePaymentIntentId,
+    reason: (reason as any) || "requested_by_customer",
+    amount: Math.round(payment.amount * 100),
+  });
+
+  // 4️⃣ Update Order + Payment statuses
+  await prisma.order.update({
+    where: { id: orderObjectId },
+    data: { paymentStatus: PaymentStatus.REFUNDED },
+  });
+
+  await prisma.payment.update({
+    where: { id: payment.id },
+    data: { status: PaymentStatus.REFUNDED },
+  });
+
+  return {
+    success: true,
+    message: "Refund processed successfully",
+    refundId: refund.id,
+  };
 };
 
 

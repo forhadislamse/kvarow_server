@@ -825,6 +825,7 @@ const getConfirmedOrders = async (
     where: {
       status: OrderStatus.CONFIRMED,
       paymentStatus: PaymentStatus.COMPLETED,
+      teacherReceiveStatus: PaymentStatus.PENDING,
     },
     include: {
       student: { select: { fullName: true } },
@@ -837,7 +838,7 @@ const getConfirmedOrders = async (
   });
 
   const totalOrders = await prisma.order.count({
-    where: { status: OrderStatus.CONFIRMED, paymentStatus: PaymentStatus.COMPLETED },
+    where: { status: OrderStatus.CONFIRMED, paymentStatus: PaymentStatus.COMPLETED, teacherReceiveStatus: PaymentStatus.PENDING },
   });
 
   const formattedOrders = orders.map((order, index) => ({
