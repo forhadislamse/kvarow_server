@@ -774,6 +774,7 @@ const getCancelledOrders = async (
     where: {
       status: OrderStatus.CANCELLED,
       paymentStatus: PaymentStatus.COMPLETED,
+
     },
     include: {
       student: { select: { fullName: true } },
@@ -861,7 +862,7 @@ const getConfirmedOrders = async (
   };
 };
 
-const getFinancialSummary = async (adminId: string) => {
+/* const getFinancialSummary = async (adminId: string) => {
   // admin check
   const admin = await prisma.user.findUnique({ where: { id: adminId } });
   if (!admin || !["ADMIN", "SUPER_ADMIN"].includes(admin.role)) {
@@ -890,7 +891,47 @@ const getFinancialSummary = async (adminId: string) => {
     totalRefund: totalRefundAgg._sum.userPayAmount || 0,
     totalPendingFund: totalPendingFundAgg._sum.userPayAmount || 0,
   };
+}; */
+
+
+
+const getFinancialSummary = async (adminId: string) => {
+  // 1️⃣ Check if user is ADMIN or SUPER_ADMIN
+  const admin = await prisma.user.findUnique({ where: { id: adminId } });
+  if (!admin || !["ADMIN", "SUPER_ADMIN"].includes(admin.role)) {
+    throw new Error("Only ADMIN can access this data");
+  }
+
+  // 2️⃣ Aggregate totals
+  const [totalTransactionAgg, totalRefundAgg, totalPendingFundAgg] =
+    await Promise.all([
+      // Total completed payments (includes all completed)
+      prisma.order.aggregate({
+        where: { paymentStatus: PaymentStatus.COMPLETED },
+        _sum: { userPayAmount: true },
+      }),
+
+      // Total refunded payments
+      prisma.order.aggregate({
+        where: { paymentStatus: PaymentStatus.REFUNDED },
+        _sum: { userPayAmount: true },
+      }),
+
+      // Total pending funds for instructors (cancelled orders but not yet received by teacher)
+      prisma.order.aggregate({
+        where: { status: OrderStatus.CANCELLED, teacherReceiveStatus: PaymentStatus.PENDING },
+        _sum: { teacherReceivedAmount: true },
+      }),
+    ]);
+
+  // 3️⃣ Return formatted result
+  return {
+    totalTransaction: totalTransactionAgg._sum.userPayAmount || 0,
+    totalRefund: totalRefundAgg._sum.userPayAmount || 0,
+    totalPendingFund: totalPendingFundAgg._sum.teacherReceivedAmount || 0,
+  };
 };
+
 
 
 export const adminUserService = {

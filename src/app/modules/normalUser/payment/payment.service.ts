@@ -335,7 +335,7 @@ const getRefundedPayments = async (
   };
 };
 
-const handleRefundByOrderId = async (
+/* const handleRefundByOrderId = async (
   adminId: string,
   orderObjectId: string,
   reason?: string
@@ -385,6 +385,70 @@ const handleRefundByOrderId = async (
     payment_intent: payment.stripePaymentIntentId,
     reason: (reason as any) || "requested_by_customer",
     amount: Math.round(payment.amount * 100),
+  });
+
+  // 4️⃣ Update Order + Payment statuses
+  await prisma.order.update({
+    where: { id: orderObjectId },
+    data: { paymentStatus: PaymentStatus.REFUNDED },
+  });
+
+  await prisma.payment.update({
+    where: { id: payment.id },
+    data: { status: PaymentStatus.REFUNDED },
+  });
+
+  return {
+    success: true,
+    message: "Refund processed successfully",
+    refundId: refund.id,
+  };
+}; */
+
+const handleRefundByOrderId = async (
+  adminId: string,
+  orderObjectId: string,
+  reason?: string
+) => {
+  // 1️⃣ Find order by _id
+  const order = await prisma.order.findUnique({
+    where: { id: orderObjectId },
+  });
+
+  if (!order) throw new ApiError(404, "Order not found");
+
+  if (order.paymentStatus === PaymentStatus.REFUNDED)
+    throw new ApiError(400, "Payment already refunded");
+
+  if (order.status !== "CANCELLED")
+    throw new ApiError(400, "Refund only allowed for cancelled orders");
+
+  if (order.paymentMethod !== "CARD")
+    throw new ApiError(400, "Refund only supported for CARD payments");
+
+  // 2️⃣ Find Payment from payment table
+  const payment = await prisma.payment.findFirst({
+    where: {
+      orderId: orderObjectId,
+      paymentGateway: "STRIPE",
+      status: PaymentStatus.COMPLETED,
+    },
+  });
+
+  if (!payment)
+    throw new ApiError(404, "Completed payment record not found");
+
+  if (!payment.stripePaymentIntentId)
+    throw new ApiError(400, "Stripe payment intent ID missing");
+
+  if (!payment.amount)
+    throw new ApiError(400, "Payment amount missing");
+
+  // 3️⃣ Stripe Refund (use Math.floor to avoid over-refund)
+  const refund = await stripe.refunds.create({
+    payment_intent: payment.stripePaymentIntentId,
+    reason: (reason as any) || "requested_by_customer",
+    amount: Math.floor(payment.amount * 100), // convert to cents safely
   });
 
   // 4️⃣ Update Order + Payment statuses
