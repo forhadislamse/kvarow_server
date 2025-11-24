@@ -7,7 +7,7 @@ import { paymentService } from "./payment.service";
 
 const createPayment = catchAsync(async (req: Request, res: Response) => {
   const studentId = req.user.id;
-  const { orderId, paymentMethod } = req.body;
+  const { orderId, paymentMethod, stripePaymentIntentId } = req.body;
 
   if (!orderId) {
     throw new ApiError(httpStatus.BAD_REQUEST, "orderId is required");
@@ -17,6 +17,7 @@ const createPayment = catchAsync(async (req: Request, res: Response) => {
     orderId,
     studentId,
     paymentMethod,
+    stripePaymentIntentId,
   });
 
   sendResponse(res, {
