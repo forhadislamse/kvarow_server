@@ -11,10 +11,12 @@ const createOrderPayment = async ({
   orderId,
   studentId,
   paymentMethod = "CARD",
+  stripePaymentIntentId,
 }: {
   orderId: string;
   studentId: string;
   paymentMethod?: string;
+  stripePaymentIntentId?: string;
 }) => {
 
   // 1️⃣ Check order exists
@@ -48,7 +50,9 @@ const createOrderPayment = async ({
       paymentMethod,
       paymentGateway: "STRIPE",
       status: PaymentStatus.COMPLETED,
+      stripePaymentIntentId,
       transactionId,
+
     },
   });
 
