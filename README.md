@@ -114,6 +114,14 @@ The server will start locally at `http://localhost:13001`.
 
 ---
 
+## 🔗 Links & Resources
+
+- **Local API Base URL:** `http://localhost:13001/api/v1`
+- **Postman API Documentation:** [View Postman Documentation](https://documenter.getpostman.com/view/34968572/2sBY4SLyYk)
+- **Backend Repository:** [github.com/forhadislamse/kvarow_server](https://github.com/forhadislamse/kvarow_server)
+
+---
+
 ## 📡 API Endpoint Overview
 
 | Method | Endpoint | Description |
