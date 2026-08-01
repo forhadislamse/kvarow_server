@@ -205,8 +205,8 @@ The server will start at `http://localhost:13001`.
 ## Resources & Documentation
 
 - **Local Server Base URL:** `http://localhost:13001/api/v1`
-- **Postman API Documentation:** [View Postman Documentation](https://documenter.getpostman.com/view/34968572/2sBY4SLyYk)
-- **Backend GitHub Repository:** [github.com/forhadislamse/kvarow_server](https://github.com/forhadislamse/kvarow_server)
+- **Postman API Documentation:** [View Postman Documentation](https://documenter.getpostman.com/view/34968572/2sBY4TpdM8)
+- **Backend Server:** [https://kvarow-server.vercel.app/](https://kvarow-server.vercel.app/)
 
 ---
 
